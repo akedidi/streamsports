@@ -48,44 +48,50 @@ class NetworkManager: ObservableObject {
     }
     
     func resolveStream(url: String, completion: @escaping (String?) -> Void) {
-        guard let targetURL = URL(string: url) else {
+        // We must properly encoding the URL parameter so that & and ? are escaped.
+        // .urlQueryAllowed DOES NOT escape & and ?, which breaks the backend parsing.
+        
+        var allowed = CharacterSet.urlQueryAllowed
+        allowed.remove(charactersIn: "&?=")
+        
+        guard let encodedUrl = url.addingPercentEncoding(withAllowedCharacters: allowed),
+              let apiURL = URL(string: "\(baseURL)/stream?url=\(encodedUrl)") else {
+            print("[NetworkManager] Failed to encode/construct URL: \(url)")
             completion(nil)
             return
         }
         
-        var request = URLRequest(url: targetURL)
-        request.httpMethod = "GET"
-        request.setValue("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36", forHTTPHeaderField: "User-Agent")
-        request.setValue("https://cdn-live.tv/", forHTTPHeaderField: "Referer")
-        
-        print("[NetworkManager] Resolving locally: \(url)")
-        
-        URLSession.shared.dataTask(with: request) { data, response, error in
-            guard let data = data, error == nil, let html = String(data: data, encoding: .utf8) else {
-                print("[NetworkManager] Request failed: \(error?.localizedDescription ?? "No data")")
-                DispatchQueue.main.async { completion(nil) }
+        print("[NetworkManager] Resolving via Backend: \(apiURL)")
+        URLSession.shared.dataTask(with: apiURL) { data, _, error in
+            guard let data = data, error == nil else {
+                print("[NetworkManager] Request error: \(error?.localizedDescription ?? "empty")")
                 return
             }
             
-            // Regex to find m3u8
-            // Pattern: /[\"']([^\"']*index\.m3u8\?token=[^\"']+)[\"']/
-            let pattern = "[\"']([^\"']*index\\.m3u8\\?token=[^\"']+)[\"']"
+            if let str = String(data: data, encoding: .utf8) {
+                print("[NetworkManager] Response: \(str)")
+            }
             
             do {
-                let regex = try NSRegularExpression(pattern: pattern, options: [])
-                let nsString = html as NSString
-                let results = regex.matches(in: html, options: [], range: NSRange(location: 0, length: nsString.length))
+                let response = try JSONDecoder().decode(StreamResponse.self, from: data)
                 
-                if let match = results.first, match.numberOfRanges > 1 {
-                    let streamUrl = nsString.substring(with: match.range(at: 1))
-                    print("[NetworkManager] Found stream: \(streamUrl)")
-                    DispatchQueue.main.async { completion(streamUrl) }
+                if let streamPath = response.streamUrl {
+                    print("[NetworkManager] Found path: \(streamPath)")
+                    // streamPath is like "/api/proxy?..."
+                    // We need to prepend the domain if it's relative
+                    if streamPath.hasPrefix("http") {
+                        DispatchQueue.main.async { completion(streamPath) }
+                    } else {
+                        // Construct full URL using the same host as baseURL (minus /api)
+                        let host = "https://streamsports-wine.vercel.app"
+                        DispatchQueue.main.async { completion("\(host)\(streamPath)") }
+                    }
                 } else {
-                    print("[NetworkManager] No m3u8 token found in HTML")
+                    print("[NetworkManager] No streamUrl in response")
                     DispatchQueue.main.async { completion(nil) }
                 }
             } catch {
-                print("[NetworkManager] Regex error: \(error)")
+                print("[NetworkManager] Decoding error (stream): \(error)")
                 DispatchQueue.main.async { completion(nil) }
             }
         }.resume()

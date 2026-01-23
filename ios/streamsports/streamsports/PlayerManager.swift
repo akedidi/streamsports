@@ -40,14 +40,12 @@ class PlayerManager: ObservableObject {
         
         // Resolve URL if needed, then play
         print("[PlayerManager] Resolving stream for: \(channel.url)")
-        
-        // Use WebView Resolver to bypass 401/Anti-Bot
-        StreamResolver.shared.resolve(url: channel.url) { [weak self] resolvedUrl in
+        NetworkManager.shared.resolveStream(url: channel.url) { [weak self] resolvedUrl in
             guard let self = self else { return }
             
             DispatchQueue.main.async {
                 guard let urlStr = resolvedUrl, let url = URL(string: urlStr) else {
-                    print("[PlayerManager] Failed to resolve URL via WebView")
+                    print("[PlayerManager] Failed to resolve URL")
                     return
                 }
                 
