@@ -9,8 +9,17 @@ const port = 3000;
 const client = new Sports99Client();
 
 // Serve static files
-app.use(express.static(path.join(process.cwd(), 'public')));
+const publicPath = path.join(__dirname, 'public');
+app.use(express.static(publicPath));
+app.use(express.static(path.join(process.cwd(), 'public'))); // Fallback
 app.use(express.json());
+
+// Root Route - Serve API
+app.get('/', (req, res) => {
+    res.sendFile(path.join(publicPath, 'index.html'), (err) => {
+        if (err) res.sendFile(path.join(process.cwd(), 'public', 'index.html'));
+    });
+});
 
 // API: Get all channels (TV Only)
 app.get('/api/channels', async (req, res) => {
