@@ -7,46 +7,89 @@ struct CustomPlayerOverlay: View {
     
     // Constants
     let miniPlayerHeight: CGFloat = 60
-    let tabBarHeight: CGFloat = 50 // Approx
     
     var body: some View {
         GeometryReader { geometry in
             VStack {
-                Spacer() // Pushes content down if needed, but we rely on offset
+                Spacer()
                 
-                if manager.currentChannel != nil {
+                if let channel = manager.currentChannel {
                     ZStack(alignment: .top) {
                         // Background (Full Screen Card)
                         if !manager.isMiniPlayer {
-                            Color(UIColor.systemBackground) // Or dark gray
+                            Color(red: 0.05, green: 0.05, blue: 0.05) // Deep Dark Background
                                 .cornerRadius(20, corners: [.topLeft, .topRight])
                                 .shadow(radius: 10)
                                 .edgesIgnoringSafeArea(.all)
+                                // Handle tap to toggle controls
                                 .onTapGesture {
-                                    // Consume taps to prevent closing if we had a background dimmer
+                                    withAnimation {
+                                        manager.showControls.toggle()
+                                    }
                                 }
                         }
                         
                         // Content
                         VStack(spacing: 0) {
-                            // 1. Handle / Top Bar (Only in Full)
+                            // 1. Handle (Only in Full)
                             if !manager.isMiniPlayer {
                                 Capsule()
-                                    .fill(Color.gray.opacity(0.5))
+                                    .fill(Color.gray.opacity(0.3))
                                     .frame(width: 40, height: 5)
                                     .padding(.top, 10)
                                     .padding(.bottom, 10)
                             }
                             
-                            // 2. Video Area (16:9 aspect ratio consistent)
-                            ZStack {
+                            // 2. Video Area
+                            ZStack(alignment: .topLeading) {
                                 Color.black
                                 
                                 if let player = manager.player {
                                     VideoPlayer(player: player)
+                                        .onTapGesture {
+                                            withAnimation {
+                                                manager.showControls.toggle() 
+                                            }
+                                        }
                                 } else {
-                                    ProgressView()
-                                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                    ProgressView().progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                }
+                                
+                                // OSD Overlays (Hide when controls are hidden)
+                                if !manager.isMiniPlayer && manager.showControls {
+                                    // Channel Title (Top Left)
+                                    Text(channel.name)
+                                        .font(.caption)
+                                        .fontWeight(.bold)
+                                        .foregroundColor(.white)
+                                        .padding(.horizontal, 8)
+                                        .padding(.vertical, 4)
+                                        .background(Color.black.opacity(0.6))
+                                        .cornerRadius(4)
+                                        .padding(10)
+                                        .transition(.opacity)
+                                    
+                                    // AirPlay (Top Right)
+                                    VStack {
+                                        HStack {
+                                            Spacer()
+                                            
+                                            // AirPlay Button
+                                            Button(action: {
+                                                // Trigger route picker safely? 
+                                                // SwiftUI doesn't have a direct button, usually needs UIViewRepresentable
+                                            }) {
+                                                 Image(systemName: "airplayvideo")
+                                                    .font(.system(size: 20))
+                                                    .foregroundColor(.white)
+                                                    .padding(10)
+                                                    .background(Color.black.opacity(0.4))
+                                                    .clipShape(Circle())
+                                            }
+                                            .padding(10)
+                                        }
+                                        Spacer()
+                                    }
                                 }
                             }
                             .frame(height: manager.isMiniPlayer ? miniPlayerHeight : geometry.size.width * 9/16)
@@ -54,77 +97,117 @@ struct CustomPlayerOverlay: View {
                             
                             // 3. Info & Controls (Full Screen Only)
                             if !manager.isMiniPlayer {
-                                ScrollView {
-                                    VStack(alignment: .leading, spacing: 20) {
-                                        // Header
-                                        VStack(alignment: .leading, spacing: 5) {
-                                            Text(manager.currentChannel?.name ?? "Loading...")
-                                                .font(.title2).bold()
-                                                .foregroundColor(.primary) // Auto dark/light
-                                            Text(manager.currentChannel?.match_info ?? "")
-                                                .font(.subheadline)
-                                                .foregroundColor(.secondary)
-                                        }
-                                        .padding(.top)
-                                        
-                                        // Controls Grid
-                                        HStack(spacing: 0) {
-                                            ControlButton(icon: "airplayvideo", label: "AirPlay") {
-                                                // AirPlay Picker logic (requires AVRoutePickerView wrapper)
+                                VStack(alignment: .leading, spacing: 24) {
+                                    // Match Details (Always visible? User said "se cacher en meme temps". 
+                                    // Usually metadata stays, but user said "le titre de la chaine... se cacher en meme temps que les autres controleurs". 
+                                    // But the Event Details are below. Let's assume standard behavior: details stay or toggle?
+                                    // User said "les autres bouton... se cachent". 
+                                    // Let's toggle everything for cleanliness implicitly requested.
+                                    
+                                    if manager.showControls {
+                                        // Title (Teams)
+                                        VStack(alignment: .leading, spacing: 6) {
+                                            Text(getRunTitle(channel))
+                                                .font(.title3)
+                                                .fontWeight(.bold)
+                                                .foregroundColor(.white)
+                                                .lineLimit(2)
+                                            
+                                            HStack(spacing: 6) {
+                                                if let code = channel.code?.lowercased(), let url = URL(string: "https://flagcdn.com/w40/\(code).png") {
+                                                    AsyncImage(url: url) { ph in ph.resizable() } placeholder: { Color.clear }
+                                                        .frame(width: 18, height: 13.5)
+                                                }
+                                                Text(channel.tournament ?? channel.sport_category ?? "")
+                                                    .font(.subheadline)
+                                                    .foregroundColor(Color.blue.opacity(0.9))
                                             }
-                                            Spacer()
-                                            ChromecastButton().frame(width: 30, height: 30) // Use wrapper
-                                            Spacer() 
-                                            ControlButton(icon: "arrow.up.left.and.arrow.down.right", label: "Full") {
-                                                // Toggle UI hidden
-                                            }
                                         }
-                                        .padding()
-                                        .background(Color(UIColor.secondarySystemBackground))
-                                        .cornerRadius(12)
+                                        .padding(.horizontal)
+                                        .padding(.top, 10)
+                                        .transition(.opacity)
                                         
                                         Spacer()
+                                        
+                                        // Bottom Controls Row (Right Aligned: CC -> PiP -> Full)
+                                        HStack(spacing: 20) {
+                                            Spacer()
+                                            
+                                            // Chromecast
+                                            ChromecastButton()
+                                                .frame(width: 24, height: 24)
+                                                .foregroundColor(.white)
+                                            
+                                            // PiP
+                                            Button(action: {
+                                                // PiP logic is native in AVPlayerViewController usually.
+                                            }) {
+                                                Image(systemName: "pip.enter")
+                                                    .font(.system(size: 20))
+                                                    .foregroundColor(.white)
+                                            }
+                                            
+                                            // Fullscreen
+                                            Button(action: {
+                                                 // Fullscreen toggle logic
+                                            }) {
+                                                Image(systemName: "arrow.up.left.and.arrow.down.right")
+                                                    .font(.system(size: 20))
+                                                    .foregroundColor(.white)
+                                            }
+                                        }
+                                        .padding(.horizontal, 24) // bit more padding from edge
+                                        .padding(.bottom, 40)
+                                        .transition(.move(edge: .bottom).combined(with: .opacity))
                                     }
-                                    .padding()
                                 }
                             }
                         }
                         
-                        // 4. Mini Player Info Overlay (Only in Mini)
+                        // 4. Mini Player Info Overlay
                         if manager.isMiniPlayer {
                             HStack {
-                                Spacer().frame(width: 110) // Gap for video
+                                Spacer().frame(width: 110)
                                 VStack(alignment: .leading, spacing: 2) {
-                                    Text(manager.currentChannel?.name ?? "Loading...")
+                                    Text(channel.name)
                                         .font(.subheadline).bold()
                                         .lineLimit(1)
-                                    Text("Tap to expand")
+                                        .foregroundColor(.white)
+                                    Text(getRunTitle(channel))
                                         .font(.caption)
-                                        .foregroundColor(.secondary)
+                                        .foregroundColor(.gray)
+                                        .lineLimit(1)
                                 }
                                 Spacer()
                                 
-                                // Mini Controls
                                 Button(action: { manager.togglePlayPause() }) {
                                     Image(systemName: manager.player?.timeControlStatus == .playing ? "pause.fill" : "play.fill")
-                                        .font(.title2)
+                                        .font(.title3)
+                                        .foregroundColor(.white)
                                         .padding()
                                 }
                                 
                                 Button(action: { manager.close() }) {
                                     Image(systemName: "xmark")
+                                        .font(.body)
+                                        .foregroundColor(.white)
                                         .padding()
                                 }
                             }
                             .frame(height: miniPlayerHeight)
-                            .background(Color(UIColor.secondarySystemBackground))
-                            .overlay(Divider(), alignment: .top)
+                            .background(Color(red: 0.1, green: 0.1, blue: 0.1))
+                            .overlay(Divider().background(Color.white.opacity(0.1)), alignment: .top)
+                            .onTapGesture {
+                                withAnimation(.spring()) {
+                                    manager.isMiniPlayer = false
+                                }
+                            }
                         }
                     }
-                    // Layout Logic
                     .frame(height: manager.isMiniPlayer ? miniPlayerHeight : geometry.size.height)
-                    .offset(y: manager.isMiniPlayer ? -60 : max(0, dragOffset)) // -60 to sit above tabbar? 
-                    // Actually, if we use ZStack in ContentView properly, we can just align .bottom
+                    .offset(y: manager.isMiniPlayer ? -60 : max(0, dragOffset))
+                    .edgesIgnoringSafeArea(.all) // Ensure we cover the tab bar which is likely in safe area
+                    // Drag Gesture to Minimize
                     .gesture(
                         DragGesture().onChanged { value in
                             if !manager.isMiniPlayer && value.translation.height > 0 {
@@ -143,40 +226,26 @@ struct CustomPlayerOverlay: View {
                             }
                         }
                     )
-                    .onTapGesture {
-                        if manager.isMiniPlayer {
-                            withAnimation(.spring()) {
-                                manager.isMiniPlayer = false
-                            }
-                        }
-                    }
                 }
             }
+            .edgesIgnoringSafeArea(.bottom) // Explicitly ignore bottom safe area for the wrapper VStack
         }
-        // This view is placed in a ZStack in ContentView. 
-        // We want it blocked at the bottom for mini player.
     }
-}
-
-struct ControlButton: View {
-    let icon: String
-    let label: String
-    let action: () -> Void
     
-    var body: some View {
-        Button(action: action) {
-            VStack(spacing: 8) {
-                Image(systemName: icon)
-                    .font(.system(size: 24))
-                Text(label).font(.caption)
-            }
-            .frame(width: 80)
-            .foregroundColor(.primary)
+    func getRunTitle(_ item: SportsChannel) -> String {
+        if let home = item.home_team, let away = item.away_team, !home.isEmpty, !away.isEmpty {
+            return "\(home) vs \(away)"
         }
+        if let info = item.match_info {
+            if let tournament = item.tournament, info.starts(with: tournament) {
+                return String(info.dropFirst(tournament.count)).trimmingCharacters(in: CharacterSet(charactersIn: " -"))
+            }
+            return info
+        }
+        return item.name
     }
 }
 
-// Extension for partial corner radius
 extension View {
     func cornerRadius(_ radius: CGFloat, corners: UIRectCorner) -> some View {
         clipShape(RoundedCorner(radius: radius, corners: corners))
