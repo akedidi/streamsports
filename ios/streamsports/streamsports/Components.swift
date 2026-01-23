@@ -89,7 +89,8 @@ struct EventRow: View {
                         Text(getRunTitle(group.displayItem))
                             .font(.system(size: 16, weight: .semibold))
                             .foregroundColor(.white)
-                            .lineLimit(2)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
                             
                         // Subtitle: League / Country
                         HStack(spacing: 6) {
