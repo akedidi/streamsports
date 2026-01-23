@@ -45,6 +45,7 @@ struct ChannelRow: View {
     }
 }
 
+// EventRow adapted for Play Action
 struct EventRow: View {
     let group: GroupedEvent
     let expandAction: () -> Void
@@ -99,7 +100,9 @@ struct EventRow: View {
             // Expanded channels
             if isExpanded {
                 ForEach(group.channels, id: \.id) { channel in
-                    NavigationLink(destination: StreamLoader(url: channel.url)) {
+                    Button(action: {
+                        PlayerManager.shared.play(channel: channel)
+                    }) {
                         HStack {
                             if let code = channel.code?.lowercased(), let url = URL(string: "https://flagcdn.com/w40/\(code).png") {
                                 AsyncImage(url: url) { ph in ph.resizable() } placeholder: { Color.gray }
@@ -107,13 +110,14 @@ struct EventRow: View {
                             }
                             Text(channel.channel_name ?? channel.name)
                                 .font(.caption)
+                                .foregroundColor(.primary)
                             Spacer()
                             Text(channel.code ?? "")
                                 .font(.caption2)
                                 .foregroundColor(.secondary)
                         }
                         .padding(.leading, 60)
-                        .padding(.vertical, 4)
+                        .padding(.vertical, 8)
                     }
                 }
             }
@@ -127,41 +131,3 @@ struct EventRow: View {
     }
 }
 
-// Loader View to resolve stream before showing player
-struct StreamLoader: View {
-    let url: String
-    @State private var resolvedUrl: URL?
-    @State private var failed = false
-    
-    var body: some View {
-        Group {
-            if let resolved = resolvedUrl {
-                VideoPlayerView(url: resolved)
-            } else if failed {
-                Text("Failed to resolve stream")
-                    .foregroundColor(.red)
-            } else {
-                VStack {
-                    ProgressView()
-                    Text("Resolving Stream...")
-                        .font(.caption)
-                        .padding(.top)
-                }
-                .onAppear {
-                    resolve()
-                }
-            }
-        }
-        .navigationBarHidden(true)
-    }
-    
-    func resolve() {
-        NetworkManager.shared.resolveStream(url: url) { res in
-            if let res = res, let u = URL(string: res) {
-                self.resolvedUrl = u
-            } else {
-                self.failed = true
-            }
-        }
-    }
-}
