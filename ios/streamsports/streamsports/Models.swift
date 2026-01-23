@@ -37,3 +37,10 @@ struct StreamResponse: Codable {
     let streamUrl: String?
     let message: String?
 }
+
+// UI Model for grouping channels by event
+struct GroupedEvent: Identifiable {
+    let id: String
+    let displayItem: SportsChannel
+    var channels: [SportsChannel]
+}
