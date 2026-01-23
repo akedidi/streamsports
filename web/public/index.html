@@ -485,18 +485,7 @@
             }
         }
 
-        .debug-footer {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: #111;
-            color: #555;
-            font-size: 0.7rem;
-            padding: 4px 8px;
-            text-align: center;
-            border-top: 1px solid #222;
-        }
+
 
         /* --- Mobile Responsiveness --- */
         @media (max-width: 768px) {
@@ -620,7 +609,7 @@
                 <!-- Items Injected Here -->
             </div>
 
-            <div class="debug-footer" id="debugStats">Loading...</div>
+
         </div>
 
         <!-- Cinema Player -->
@@ -665,8 +654,7 @@
             video: document.getElementById('videoPlayer'),
             placeholder: document.getElementById('playerPlaceholder'),
             loader: document.getElementById('loading'),
-            sidebar: document.getElementById('sidebar'),
-            stats: document.getElementById('debugStats')
+            sidebar: document.getElementById('sidebar')
         };
 
         let hls;
@@ -786,9 +774,6 @@
             if (query) {
                 source = source.filter(i => i.name.toLowerCase().includes(query));
             }
-
-            // Update Stats
-            els.stats.innerText = `Found: ${source.length} / Total: ${currentTab === 'channels' ? state.channels.length : state.events.length}`;
 
             // 3. Render
             if (state.tab === 'channels') renderChannelList(source);
