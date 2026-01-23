@@ -51,13 +51,22 @@ class NetworkManager: ObservableObject {
         guard let encodedUrl = url.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
               let apiURL = URL(string: "\(baseURL)/stream?url=\(encodedUrl)") else { return }
         
+        print("[NetworkManager] Resolving: \(apiURL)")
         URLSession.shared.dataTask(with: apiURL) { data, _, error in
-            guard let data = data, error == nil else { return }
+            guard let data = data, error == nil else {
+                print("[NetworkManager] Request error: \(error?.localizedDescription ?? "empty")")
+                return
+            }
+            
+            if let str = String(data: data, encoding: .utf8) {
+                print("[NetworkManager] Response: \(str)")
+            }
             
             do {
                 let response = try JSONDecoder().decode(StreamResponse.self, from: data)
                 
                 if let streamPath = response.streamUrl {
+                    print("[NetworkManager] Found path: \(streamPath)")
                     // streamPath is like "/api/proxy?..."
                     // We need to prepend the domain if it's relative
                     if streamPath.hasPrefix("http") {
@@ -68,10 +77,11 @@ class NetworkManager: ObservableObject {
                         DispatchQueue.main.async { completion("\(host)\(streamPath)") }
                     }
                 } else {
+                    print("[NetworkManager] No streamUrl in response")
                     DispatchQueue.main.async { completion(nil) }
                 }
             } catch {
-                print("Decoding error (stream): \(error)")
+                print("[NetworkManager] Decoding error (stream): \(error)")
                 DispatchQueue.main.async { completion(nil) }
             }
         }.resume()

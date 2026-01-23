@@ -39,10 +39,27 @@ class PlayerManager: ObservableObject {
         self.offset = 0
         
         // Resolve URL if needed, then play
+        // Resolve URL if needed, then play
+        print("[PlayerManager] Resolving stream for: \(channel.url)")
         NetworkManager.shared.resolveStream(url: channel.url) { [weak self] resolvedUrl in
-            guard let self = self, let urlStr = resolvedUrl, let url = URL(string: urlStr) else { return }
+            guard let self = self else { return }
             
             DispatchQueue.main.async {
+                guard let urlStr = resolvedUrl, let url = URL(string: urlStr) else {
+                    print("[PlayerManager] Failed to resolve URL")
+                    return
+                }
+                
+                print("[PlayerManager] Playing URL: \(url)")
+                
+                // Animate Presentation
+                withAnimation(.spring()) {
+                    self.currentChannel = channel
+                    self.isPlaying = true
+                    self.isMiniPlayer = false
+                    self.offset = 0
+                }
+                
                 let item = AVPlayerItem(url: url)
                 self.player = AVPlayer(playerItem: item)
                 self.player?.play()
