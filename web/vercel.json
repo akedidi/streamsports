@@ -6,8 +6,27 @@
             "destination": "/api/index.ts"
         },
         {
-            "source": "/(.*)",
+            "source": "/",
+            "destination": "/public/index.html"
+        },
+        {
+            "source": "/(.*)\\.(css|js|png|jpg|jpeg|svg|json|ico)",
+            "destination": "/public/$1.$2"
+        },
+        {
+            "source": "/((?!api).*)",
             "destination": "/public/$1"
+        }
+    ],
+    "headers": [
+        {
+            "source": "/(.*)",
+            "headers": [
+                {
+                    "key": "Access-Control-Allow-Origin",
+                    "value": "*"
+                }
+            ]
         }
     ]
 }
