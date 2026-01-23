@@ -127,23 +127,36 @@ struct ChannelsView: View {
             CustomSearchBar(text: $viewModel.channelSearchText)
                 .padding(.top)
             
-            // Country Filters
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    // "All" Chip
-                    FilterChip(title: "All", isSelected: viewModel.selectedCountry == nil) {
-                        viewModel.selectedCountry = nil
-                    }
-                    
+            // Country Filter (Menu / ComboBox)
+            HStack {
+                Text("Country:")
+                    .foregroundColor(.gray)
+                    .font(.caption)
+                
+                Menu {
+                    Button("All", action: { viewModel.selectedCountry = nil })
                     ForEach(viewModel.availableCountries, id: \.self) { country in
-                        FilterChip(title: country, isSelected: viewModel.selectedCountry == country) {
-                            viewModel.selectedCountry = country
-                        }
+                        Button(country, action: { viewModel.selectedCountry = country })
                     }
+                } label: {
+                    HStack {
+                        Text(viewModel.selectedCountry ?? "All")
+                            .foregroundColor(.white)
+                            .font(.system(size: 14, weight: .medium))
+                        Image(systemName: "chevron.down")
+                            .font(.caption)
+                            .foregroundColor(.gray)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(Color(UIColor.tertiarySystemFill))
+                    .cornerRadius(8)
                 }
-                .padding(.horizontal)
-                .padding(.vertical, 8)
+                
+                Spacer()
             }
+            .padding(.horizontal)
+            .padding(.bottom, 8)
             
             if viewModel.isLoading {
                 Spacer()

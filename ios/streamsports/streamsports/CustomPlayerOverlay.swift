@@ -9,104 +9,136 @@ struct CustomPlayerOverlay: View {
         VStack {
             if manager.currentChannel != nil {
                 ZStack(alignment: .bottom) {
-                    VStack(spacing: 0) {
-                        // Video Player Area
-                        HStack(spacing: 0) {
-                            if let player = manager.player {
-                                VideoPlayer(player: player)
-                                    .frame(width: manager.isMiniPlayer ? 100 : UIScreen.main.bounds.width, height: manager.isMiniPlayer ? 60 : 250)
+                    // Full Screen Modal Content
+                    if !manager.isMiniPlayer {
+                        Color.black.edgesIgnoringSafeArea(.all)
+                        
+                        VStack(spacing: 0) {
+                            // Top Bar (Dismiss)
+                            HStack {
+                                Spacer()
+                                Button(action: {
+                                    withAnimation { manager.isMiniPlayer = true }
+                                }) {
+                                    Image(systemName: "chevron.down")
+                                        .foregroundColor(.white)
+                                        .padding()
+                                }
                             }
                             
-                            // Mini Player Title
-                            if manager.isMiniPlayer {
-                                VStack(alignment: .leading) {
-                                    Text(manager.currentChannel?.name ?? "Unknown")
-                                        .font(.subheadline)
-                                        .lineLimit(1)
-                                        .foregroundColor(.white)
-                                }
-                                .padding(.leading, 10)
-                                Spacer()
-                                
-                                // Mini Controls
-                                Button(action: { manager.togglePlayPause() }) {
-                                    Image(systemName: manager.player?.timeControlStatus == .playing ? "pause.fill" : "play.fill")
-                                        .foregroundColor(.white)
-                                        .padding()
-                                }
-                                
-                                Button(action: { manager.close() }) {
-                                    Image(systemName: "xmark")
-                                        .foregroundColor(.white)
-                                        .padding()
-                                }
+                            // Player Area
+                            if let player = manager.player {
+                                VideoPlayer(player: player)
+                                    .frame(height: 300)
+                                    .background(Color.black)
                             }
-                        }
-                        .background(Color.black)
-                        
-                        // Full Screen Content
-                        if !manager.isMiniPlayer {
+                            
+                            // Info & Controls
                             ScrollView {
-                                VStack(alignment: .leading, spacing: 15) {
-                                    Text(manager.currentChannel?.name ?? "")
-                                        .font(.title2)
-                                        .bold()
-                                    
-                                    HStack {
-                                        if let code = manager.currentChannel?.code {
-                                            Text(code).padding(5).background(Color.blue.opacity(0.3)).cornerRadius(5)
-                                        }
-                                        Text("LIVE").foregroundColor(.red).bold()
+                                VStack(alignment: .leading, spacing: 20) {
+                                    VStack(alignment: .leading, spacing: 8) {
+                                        Text(manager.currentChannel?.name ?? "")
+                                            .font(.title2)
+                                            .bold()
+                                            .foregroundColor(.white)
+                                        
+                                        Text(manager.currentChannel?.match_info ?? "")
+                                            .foregroundColor(.gray)
                                     }
                                     
-                                    // Action Buttons Row (AirPlay, PiP placeholder)
-                                    HStack(spacing: 20) {
+                                    // Control Buttons
+                                    HStack(spacing: 30) {
+                                        // AirPlay (Route Picker)
                                         Button(action: {
-                                            // PiP handled by AVPlayerViewController automatically usually, 
-                                            // but requires specific setup for custom UI.
-                                        }) {
-                                            VStack {
-                                                Image(systemName: "pip.enter")
-                                                Text("PiP")
-                                            }
-                                        }
-                                        
-                                        Button(action: {
-                                            // Native AirPlay routing picker
+                                            // Show AirPlay Picker
                                         }) {
                                             VStack {
                                                 Image(systemName: "airplayvideo")
-                                                Text("AirPlay")
+                                                    .font(.system(size: 24))
+                                                Text("AirPlay").font(.caption)
                                             }
                                         }
+                                        .foregroundColor(.white)
                                         
+                                        // Chromecast
+                                        ChromecastButton()
+                                            .frame(width: 24, height: 24)
+                                        
+                                        // Fullscreen
                                         Button(action: {
-                                            // Chromecast (Placeholder)
+                                            // Toggle pure fullscreen logic (hide UI)
                                         }) {
                                             VStack {
-                                                Image(systemName: "tv")
-                                                Text("Cast")
+                                                Image(systemName: "arrow.up.left.and.arrow.down.right")
+                                                    .font(.system(size: 24))
+                                                Text("Full").font(.caption)
                                             }
                                         }
+                                        .foregroundColor(.white)
                                     }
                                     .frame(maxWidth: .infinity)
-                                    .padding(.vertical)
-                                    .background(Color.gray.opacity(0.2))
-                                    .cornerRadius(10)
-                                    
-                                    Text("Description")
-                                        .font(.headline)
-                                    Text(manager.currentChannel?.match_info ?? "No details available")
-                                        .foregroundColor(.gray)
+                                    .padding(.vertical, 20)
+                                    .background(Color.white.opacity(0.1))
+                                    .cornerRadius(12)
                                 }
                                 .padding()
                             }
-                            .background(Color(UIColor.systemBackground))
+                            Spacer()
                         }
                     }
+                    
+                    // Mini Player Bar (Modal-like on TabBar)
+                    if manager.isMiniPlayer {
+                        VStack(spacing: 0) {
+                            HStack(spacing: 0) {
+                                // Video Thumbnail
+                                if let player = manager.player {
+                                    VideoPlayer(player: player)
+                                        .frame(width: 120, height: 68) // 16:9 ish
+                                        .allowsHitTesting(false) // Pass touches to bar
+                                }
+                                
+                                // Title Info
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(manager.currentChannel?.name ?? "Playing")
+                                        .font(.system(size: 14, weight: .semibold))
+                                        .lineLimit(1)
+                                        .foregroundColor(.white)
+                                    
+                                    Text("Tap to expand")
+                                        .font(.caption)
+                                        .foregroundColor(.gray)
+                                }
+                                .padding(.leading, 12)
+                                
+                                Spacer()
+                                
+                                // Play/Pause
+                                Button(action: { manager.togglePlayPause() }) {
+                                    Image(systemName: manager.player?.timeControlStatus == .playing ? "pause.fill" : "play.fill")
+                                        .font(.system(size: 20))
+                                        .foregroundColor(.white)
+                                        .padding()
+                                }
+                                
+                                // Close
+                                Button(action: { manager.close() }) {
+                                    Image(systemName: "xmark")
+                                        .font(.system(size: 16))
+                                        .foregroundColor(.gray)
+                                        .padding()
+                                }
+                            }
+                            .background(Color(UIColor.systemGray6).opacity(0.95))
+                            .overlay(Divider(), alignment: .top)
+                        }
+                        .onTapGesture {
+                            withAnimation { manager.isMiniPlayer = false }
+                        }
+                        .transition(.move(edge: .bottom))
+                    }
                 }
-                .frame(maxHeight: manager.isMiniPlayer ? 60 : .infinity)
-                .background(manager.isMiniPlayer ? Color(UIColor.secondarySystemBackground) : Color(UIColor.systemBackground))
+                .frame(maxHeight: manager.isMiniPlayer ? 68 : .infinity)
                 .offset(y: manager.offset)
                 .gesture(
                     DragGesture().onChanged { value in
@@ -120,20 +152,13 @@ struct CustomPlayerOverlay: View {
                                 manager.offset = 0
                             }
                         } else {
-                            withAnimation {
-                                manager.offset = 0
-                            }
+                            withAnimation { manager.offset = 0 }
                         }
                     }
                 )
-                .onTapGesture {
-                    if manager.isMiniPlayer {
-                        withAnimation {
-                            manager.isMiniPlayer = false
-                        }
-                    }
-                }
-                .padding(.bottom, manager.isMiniPlayer ? 50 : 0) // Bottom Tab Bar safe area
+                // If it's mini player, it sits ABOVE tab bar (bottom padding handled in ContentView usually, 
+                // but here it's overlay. We want it effectively "on" the tab bar.)
+                .padding(.bottom, manager.isMiniPlayer ? 60 : 0) 
             }
         }
         .edgesIgnoringSafeArea(manager.isMiniPlayer ? [] : .all)
