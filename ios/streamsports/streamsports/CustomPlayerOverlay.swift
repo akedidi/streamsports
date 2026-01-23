@@ -166,8 +166,42 @@ struct CustomPlayerOverlay: View {
                         
                         // 4. Mini Player Info Overlay
                         if manager.isMiniPlayer {
-                            HStack {
-                                Spacer().frame(width: 110)
+                            HStack(spacing: 8) {
+                                Spacer().frame(width: 100)
+                                
+                                // Logo / Flag
+                                Group {
+                                    if let img = channel.image, let url = URL(string: img) {
+                                         AsyncImage(url: url) { phase in
+                                             if let image = phase.image {
+                                                 image.resizable().aspectRatio(contentMode: .fit)
+                                             } else {
+                                                 Color.clear
+                                             }
+                                         }
+                                    } else if let img = channel.countryIMG, let url = URL(string: img) {
+                                         AsyncImage(url: url) { phase in
+                                             if let image = phase.image {
+                                                 image.resizable().aspectRatio(contentMode: .fit)
+                                             } else {
+                                                  Color.clear
+                                             }
+                                         }
+                                    } else if let code = channel.code?.lowercased(), let url = URL(string: "https://flagcdn.com/w40/\(code).png") {
+                                         AsyncImage(url: url) { phase in
+                                             if let image = phase.image {
+                                                 image.resizable().aspectRatio(contentMode: .fit)
+                                             } else {
+                                                  Color.clear
+                                             }
+                                         }
+                                    } else {
+                                        Image(systemName: "tv")
+                                            .foregroundColor(.gray)
+                                    }
+                                }
+                                .frame(width: 24, height: 24)
+                                
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(channel.name)
                                         .font(.subheadline).bold()
