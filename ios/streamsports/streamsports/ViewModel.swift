@@ -1,4 +1,5 @@
 import Foundation
+import Combine
 
 class AppViewModel: ObservableObject {
     @Published var channels: [SportsChannel] = []

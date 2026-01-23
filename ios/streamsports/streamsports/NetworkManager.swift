@@ -1,4 +1,5 @@
 import Foundation
+import Combine
 
 class NetworkManager: ObservableObject {
     static let shared = NetworkManager()
