@@ -155,8 +155,14 @@ app.get('/api/proxy', async (req, res) => {
     }
 });
 
-app.listen(port, () => {
-    console.log(`\n-----------------------------------------------------------`);
-    console.log(`🚀 Server running at http://localhost:${port}`);
-    console.log(`-----------------------------------------------------------\n`);
-});
+// Export the app for Vercel Serverless
+export default app;
+
+// Only listen if run directly (local dev)
+if (require.main === module) {
+    app.listen(port, () => {
+        console.log(`\n-----------------------------------------------------------`);
+        console.log(`🚀 Server running at http://localhost:${port}`);
+        console.log(`-----------------------------------------------------------\n`);
+    });
+}
