@@ -116,7 +116,8 @@ export class Sports99Client {
                 code: c.code,
                 url: c.url,
                 image: c.image || "",
-                status: c.status
+                status: c.status,
+                country: c.code // Use code as country (e.g. "us", "uk")
             }));
         } catch (e: any) {
             console.error('[Sports99] Error fetching Live TV:', e.message);
