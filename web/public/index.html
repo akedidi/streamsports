@@ -885,7 +885,15 @@
                 return false;
             }).sort((a, b) => (a.event.start || '').localeCompare(b.event.start || ''));
 
-            const upcomingEvents = uniqueEvents.filter(g => g.event.status !== 'live').sort((a, b) => (a.event.start || '').localeCompare(b.event.start || ''));
+            const upcomingEvents = uniqueEvents.filter(g => {
+                if (g.event.status === 'live') return false;
+                // Only show events that haven't started yet
+                if (g.event.start) {
+                    const startDate = new Date(g.event.start.replace(' ', 'T'));
+                    if (new Date() > startDate) return false; // Already started
+                }
+                return true;
+            }).sort((a, b) => (a.event.start || '').localeCompare(b.event.start || ''));
 
             // Render Live Events Section
             if (liveEvents.length > 0) {
