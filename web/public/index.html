@@ -1303,7 +1303,9 @@
                 const data = await res.json();
                 if (data.success) {
                     console.log('DEBUG: Stream URL fetched:', data.streamUrl);
+                    console.log('DEBUG: Raw URL available:', data.rawUrl);
                     currentStreamUrl = data.streamUrl;
+                    window.rawStreamUrl = data.rawUrl; // Store globally
                 } else {
                     console.error('DEBUG: Failed to fetch stream URL:', data);
                 }
@@ -1565,7 +1567,8 @@
                     castSession = castContext.getCurrentSession();
                     if (castSession) {
                         const video = document.getElementById('videoPlayer');
-                        const streamSrc = currentStreamUrl || video.src;
+                        // Use RAW URL for Chromecast (Residential IP)
+                        const streamSrc = window.rawStreamUrl || currentStreamUrl || video.src;
                         console.log('DEBUG: Attempting to cast URL:', streamSrc);
 
                         if (!streamSrc) {

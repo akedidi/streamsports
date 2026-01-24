@@ -60,7 +60,8 @@ app.get('/api/stream', async (req, res) => {
         const streamUrl = await client.resolveStreamUrl(playerUrl);
         if (streamUrl) {
             const proxyUrl = `/api/proxy?url=${encodeURIComponent(streamUrl)}&referer=${encodeURIComponent(playerUrl)}`;
-            res.json({ success: true, streamUrl: proxyUrl });
+            // Expose Raw URL for Chromecast (Residential IP)
+            res.json({ success: true, streamUrl: proxyUrl, rawUrl: streamUrl });
         } else {
             res.status(404).json({ success: false, message: 'Could not resolve stream URL' });
         }
@@ -83,18 +84,10 @@ app.get('/api/proxy', async (req, res) => {
     try {
         const response = await axios.get(targetUrl, {
             headers: {
-                // Use simplified Referer (Origin only) to avoid leaking params and look cleaner
-                'Referer': new URL(referer).origin + '/',
-                'Origin': new URL(referer).origin,
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-                'Accept': '*/*',
-                'Accept-Language': 'en-US,en;q=0.9',
-                'Sec-Ch-Ua': '"Google Chrome";v="121", "Chromium";v="121", "Not_A Brand";v="24"',
-                'Sec-Ch-Ua-Mobile': '?0',
-                'Sec-Ch-Ua-Platform': '"Windows"',
-                'Sec-Fetch-Dest': 'empty',
-                'Sec-Fetch-Mode': 'cors',
-                'Sec-Fetch-Site': 'cross-site',
+                // Try "VLC" disguise - No Referer, Media Player UA
+                // This often bypasses Referer checks AND works if IP blocked for "Browsers"
+                'User-Agent': 'VLC/3.0.18 LibVLC/3.0.18',
+                'Accept': '*/*'
             },
             responseType: 'arraybuffer'
         });
