@@ -184,9 +184,8 @@ class AppViewModel: ObservableObject {
                     let formatter = DateFormatter()
                     formatter.dateFormat = "yyyy-MM-dd HH:mm"
                     if let endDate = formatter.date(from: endStr) {
-                        // Buffer: Hide if current time is past end time + 15 mins (allow for extra time)
-                        // 15 * 60 = 900 seconds
-                        if Date().timeIntervalSince(endDate) > 900 {
+                        // Hide immediately if current time is past end time
+                        if Date() > endDate {
                             return false
                         }
                     }
