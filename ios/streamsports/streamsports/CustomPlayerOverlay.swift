@@ -80,6 +80,54 @@ struct CustomPlayerOverlay: View {
                                     .padding(.bottom, 10)
                             }
                             
+                            // 1.5 Server List (Sibling Channels)
+                            if !manager.isMiniPlayer {
+                                let siblings = getSiblingChannels(for: channel)
+                                if siblings.count > 1 {
+                                    ScrollView(.horizontal, showsIndicators: false) {
+                                        HStack(spacing: 8) {
+                                            Text("Servers:")
+                                                .font(.caption)
+                                                .foregroundColor(.gray)
+                                                .padding(.leading, 16)
+                                            
+                                            ForEach(siblings, id: \.url) { sibling in
+                                                Button(action: {
+                                                    manager.play(channel: sibling)
+                                                }) {
+                                                    HStack(spacing: 6) {
+                                                        if let code = sibling.code?.lowercased(), let url = URL(string: "https://flagcdn.com/20x15/\(code).png") {
+                                                            AsyncImage(url: url) { ph in ph.resizable() } placeholder: { Color.clear }
+                                                                .frame(width: 16, height: 12)
+                                                        }
+                                                        
+                                                        VStack(alignment: .leading, spacing: 0) {
+                                                            Text(sibling.channel_name ?? sibling.name)
+                                                                .font(.system(size: 11, weight: .semibold))
+                                                            if let c = sibling.country {
+                                                                Text(c)
+                                                                    .font(.system(size: 9))
+                                                                    .foregroundColor(.white.opacity(0.7))
+                                                            }
+                                                        }
+                                                    }
+                                                    .padding(.horizontal, 10)
+                                                    .padding(.vertical, 6)
+                                                    .background(sibling.url == channel.url ? Color.green : Color(UIColor.tertiarySystemFill))
+                                                    .foregroundColor(sibling.url == channel.url ? .black : .white)
+                                                    .cornerRadius(8)
+                                                    .overlay(
+                                                        RoundedRectangle(cornerRadius: 8)
+                                                            .stroke(Color.white.opacity(0.1), lineWidth: 1)
+                                                    )
+                                                }
+                                            }
+                                        }
+                                        .padding(.bottom, 8)
+                                    }
+                                }
+                            }
+                            
                             // 2. Video Area
                             ZStack(alignment: .topLeading) {
                                 Color.black
@@ -399,6 +447,42 @@ struct CustomPlayerOverlay: View {
             return info
         }
         return item.name
+    }
+    func getRunTitle(_ item: SportsChannel) -> String {
+        if let home = item.home_team, let away = item.away_team, !home.isEmpty, !away.isEmpty {
+            return "\(home) vs \(away)"
+        }
+        if let info = item.match_info {
+            if let tournament = item.tournament, info.starts(with: tournament) {
+                return String(info.dropFirst(tournament.count)).trimmingCharacters(in: CharacterSet(charactersIn: " -"))
+            }
+            return info
+        }
+        return item.name
+    }
+    
+    private func getSiblingChannels(for current: SportsChannel) -> [SportsChannel] {
+        // Gather all candidates (Live + Upcoming + Channel List)
+        // Set to avoid duplicates if lists overlap
+        var candidates: [SportsChannel] = viewModel.channels
+        viewModel.liveEvents.forEach { candidates.append(contentsOf: $0.channels) }
+        
+        var siblings: [SportsChannel] = []
+        
+        if let gid = current.gameID, !gid.isEmpty {
+            siblings = candidates.filter { $0.gameID == gid }
+        } else if let info = current.match_info, let tour = current.tournament {
+             // Precise match required
+            siblings = candidates.filter { $0.match_info == info && $0.tournament == tour }
+        }
+        
+        // Deduplicate by URL and self
+        var seen = Set<String>()
+        return siblings.filter {
+            if seen.contains($0.url) { return false }
+            seen.insert($0.url)
+            return true
+        }
     }
 }
 
