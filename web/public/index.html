@@ -1058,14 +1058,14 @@
                 if (item.status === 'live') {
                     // Stale check using 'end' date
                     if (item.end) {
-                        const endDate = new Date(item.end.replace(' ', 'T')); // Parse "YYYY-MM-DD HH:mm"
+                        const endDate = new Date(item.end.replace(' ', 'T') + 'Z'); // Parse as UTC
                         // Hide immediately if current time is past end time
                         if (new Date() > endDate) {
                             return false;
                         }
                     } else if (item.start) {
                         // Fallback to start time heuristic if 'end' is missing
-                        const startDate = new Date(item.start.replace(' ', 'T'));
+                        const startDate = new Date(item.start.replace(' ', 'T') + 'Z');
                         const startDiff = (new Date() - startDate) / 1000 / 60;
                         if (startDiff > 180) return false;
                     }
@@ -1079,7 +1079,8 @@
                 if (g.event.status === 'live') return false;
                 // Only show events that haven't started yet
                 if (g.event.start) {
-                    const startDate = new Date(g.event.start.replace(' ', 'T'));
+                    // API returns UTC times - parse as UTC, not local time
+                    const startDate = new Date(g.event.start.replace(' ', 'T') + 'Z');
                     if (new Date() > startDate) return false; // Already started
                 }
                 return true;
