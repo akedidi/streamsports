@@ -650,10 +650,32 @@
             </div>
             <video id="videoPlayer" controls style="display: none;"></video>
 
-            <!-- Player Controls Overlay (top-right, visible on hover) -->
-            <div id="playerControls" style="
+            <!-- AirPlay Button (top-right) -->
+            <div id="airplayControls" style="
                 position: absolute; 
                 top: 12px; 
+                right: 12px; 
+                display: none; 
+                z-index: 10;
+            ">
+                <button id="airplayBtn" onclick="toggleAirPlay()" title="AirPlay" style="
+                    width: 40px; height: 40px; border-radius: 50%; border: none;
+                    background: rgba(0,0,0,0.6); backdrop-filter: blur(8px);
+                    color: white; cursor: pointer; display: flex; align-items: center; justify-content: center;
+                    transition: background 0.2s ease;
+                " onmouseover="this.style.background='rgba(0,0,0,0.8)'"
+                    onmouseout="this.style.background='rgba(0,0,0,0.6)'">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M5 17H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-1"></path>
+                        <polygon points="12 15 17 21 7 21 12 15" fill="currentColor" stroke="none"></polygon>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- PiP and Chromecast (bottom-right, above native controls) -->
+            <div id="playerControls" style="
+                position: absolute; 
+                bottom: 50px; 
                 right: 12px; 
                 display: none; 
                 gap: 8px; 
@@ -1151,7 +1173,8 @@
             els.placeholder.style.display = 'none';
             els.video.style.display = 'block';
 
-            // Show player controls (top-right buttons)
+            // Show player controls (AirPlay top-right, PiP/Cast bottom-right)
+            document.getElementById('airplayControls').style.display = 'flex';
             document.getElementById('playerControls').style.display = 'flex';
 
             const showError = (msg) => {
@@ -1184,6 +1207,37 @@
                 }
             } catch (e) {
                 showError("Connection Failed");
+            }
+        }
+        // --- AirPlay ---
+        async function toggleAirPlay() {
+            const video = document.getElementById('videoPlayer');
+            // Use Remote Playback API for AirPlay
+            if (video.remote) {
+                try {
+                    await video.remote.prompt();
+                } catch (e) {
+                    if (e.name !== 'NotAllowedError') {
+                        // Show toast with instructions
+                        const toast = document.getElementById('errorToast');
+                        toast.innerText = '📺 AirPlay: Use Safari or enable in browser settings';
+                        toast.style.background = '#3b82f6';
+                        toast.style.display = 'block';
+                        setTimeout(() => {
+                            toast.style.display = 'none';
+                            toast.style.background = '#ef4444';
+                        }, 4000);
+                    }
+                }
+            } else {
+                const toast = document.getElementById('errorToast');
+                toast.innerText = '📺 AirPlay requires Safari browser';
+                toast.style.background = '#3b82f6';
+                toast.style.display = 'block';
+                setTimeout(() => {
+                    toast.style.display = 'none';
+                    toast.style.background = '#ef4444';
+                }, 4000);
             }
         }
 
