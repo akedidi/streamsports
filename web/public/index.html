@@ -872,7 +872,7 @@
                 liveHeader.innerHTML = '<span class="live-indicator"></span><span style="color: #ef4444; font-weight: 600;">LIVE NOW (' + liveEvents.length + ')</span>';
                 els.contentList.appendChild(liveHeader);
 
-                liveEvents.slice(0, 30).forEach(group => renderEventRow(group, true));
+                liveEvents.forEach(group => renderEventRow(group, true));
             }
 
             // Render Upcoming Events Section
@@ -882,7 +882,7 @@
                 upcomingHeader.innerHTML = '<span style="color: #818cf8; font-weight: 600;">📅 UPCOMING (' + upcomingEvents.length + ')</span>';
                 els.contentList.appendChild(upcomingHeader);
 
-                upcomingEvents.slice(0, 30).forEach(group => renderEventRow(group, false));
+                upcomingEvents.forEach(group => renderEventRow(group, false));
             }
         }
 
