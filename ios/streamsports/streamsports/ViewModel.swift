@@ -137,7 +137,8 @@ class AppViewModel: ObservableObject {
         var statusMap: [String: String] = [:]
         
         func normalize(_ s: String?) -> String? {
-            return s?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            guard let s = s else { return nil }
+            return self.normalizeName(s)
         }
         
         for c in self.channels {
@@ -231,11 +232,15 @@ class AppViewModel: ObservableObject {
     
     private func normalizeName(_ name: String) -> String {
         let allowed = CharacterSet.alphanumerics
-        return name.lowercased()
+        var s = name.lowercased()
             .components(separatedBy: allowed.inverted).joined()
-            .replacingOccurrences(of: "hd", with: "")
-            .replacingOccurrences(of: "fhd", with: "")
-            .replacingOccurrences(of: "tv", with: "")
+            
+        // Remove suffixes safely (Anchor to end, like Web regex)
+        if s.hasSuffix("fhd") { s = String(s.dropLast(3)) }
+        else if s.hasSuffix("hd") { s = String(s.dropLast(2)) }
+        else if s.hasSuffix("tv") { s = String(s.dropLast(2)) }
+        
+        return s
     }
     
     private func processEPG(_ data: [String: EPGChannelData]) {
