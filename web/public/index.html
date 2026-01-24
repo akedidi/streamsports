@@ -650,25 +650,23 @@
             </div>
             <video id="videoPlayer" controls style="display: none;"></video>
 
-            <!-- Player Controls Overlay (synced with native controls visibility) -->
-            <div id="playerControls" class="player-custom-controls" style="
+            <!-- Player Controls Overlay (top-right, visible on hover) -->
+            <div id="playerControls" style="
                 position: absolute; 
-                bottom: 48px; 
+                top: 12px; 
                 right: 12px; 
                 display: none; 
-                gap: 4px; 
-                z-index: 2147483647;
-                opacity: 0;
-                transition: opacity 0.3s ease;
-                pointer-events: none;
+                gap: 8px; 
+                z-index: 10;
             ">
                 <!-- Chromecast Button -->
                 <button id="castBtn" onclick="openCastDialog()" title="Cast to device" style="
-                    width: 32px; height: 32px; border-radius: 4px; border: none;
-                    background: transparent;
+                    width: 40px; height: 40px; border-radius: 50%; border: none;
+                    background: rgba(0,0,0,0.6); backdrop-filter: blur(8px);
                     color: white; cursor: pointer; display: flex; align-items: center; justify-content: center;
-                " onmouseover="this.style.background='rgba(255,255,255,0.2)'"
-                    onmouseout="this.style.background='transparent'">
+                    transition: background 0.2s ease;
+                " onmouseover="this.style.background='rgba(0,0,0,0.8)'"
+                    onmouseout="this.style.background='rgba(0,0,0,0.6)'">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path
                             d="M2 16.1A5 5 0 0 1 5.9 20M2 12.05A9 9 0 0 1 9.95 20M2 8V6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6">
@@ -679,11 +677,12 @@
 
                 <!-- Picture-in-Picture Button -->
                 <button id="pipBtn" onclick="togglePiP()" title="Picture in Picture" style="
-                    width: 32px; height: 32px; border-radius: 4px; border: none;
-                    background: transparent;
+                    width: 40px; height: 40px; border-radius: 50%; border: none;
+                    background: rgba(0,0,0,0.6); backdrop-filter: blur(8px);
                     color: white; cursor: pointer; display: flex; align-items: center; justify-content: center;
-                " onmouseover="this.style.background='rgba(255,255,255,0.2)'"
-                    onmouseout="this.style.background='transparent'">
+                    transition: background 0.2s ease;
+                " onmouseover="this.style.background='rgba(0,0,0,0.8)'"
+                    onmouseout="this.style.background='rgba(0,0,0,0.6)'">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
                         <rect x="11" y="9" width="9" height="7" rx="1" fill="currentColor" stroke="none"></rect>
@@ -1152,10 +1151,8 @@
             els.placeholder.style.display = 'none';
             els.video.style.display = 'block';
 
-            // Setup custom controls visibility (synced with native controls auto-hide)
-            const playerControls = document.getElementById('playerControls');
-            playerControls.style.display = 'flex';
-            setupControlsAutoHide();
+            // Show player controls (top-right buttons)
+            document.getElementById('playerControls').style.display = 'flex';
 
             const showError = (msg) => {
                 const t = document.getElementById('errorToast');
@@ -1188,52 +1185,6 @@
             } catch (e) {
                 showError("Connection Failed");
             }
-        }
-
-        // --- Controls Auto-Hide (sync with native player controls) ---
-        let controlsTimeout = null;
-        let controlsSetup = false;
-
-        function setupControlsAutoHide() {
-            if (controlsSetup) return;
-            controlsSetup = true;
-
-            const video = document.getElementById('videoPlayer');
-            const playerControls = document.getElementById('playerControls');
-            const playerArea = document.querySelector('.player-area');
-
-            const showControls = () => {
-                playerControls.style.opacity = '1';
-                playerControls.style.pointerEvents = 'auto';
-                clearTimeout(controlsTimeout);
-                controlsTimeout = setTimeout(hideControls, 3000);
-            };
-
-            const hideControls = () => {
-                if (!video.paused) {
-                    playerControls.style.opacity = '0';
-                    playerControls.style.pointerEvents = 'none';
-                }
-            };
-
-            // Show controls on mouse move over player area
-            playerArea.addEventListener('mousemove', showControls);
-            playerArea.addEventListener('mouseenter', showControls);
-            playerArea.addEventListener('mouseleave', hideControls);
-
-            // Keep controls visible when video is paused
-            video.addEventListener('pause', () => {
-                clearTimeout(controlsTimeout);
-                playerControls.style.opacity = '1';
-                playerControls.style.pointerEvents = 'auto';
-            });
-
-            video.addEventListener('play', () => {
-                controlsTimeout = setTimeout(hideControls, 3000);
-            });
-
-            // Initial show
-            showControls();
         }
 
         // --- Picture-in-Picture ---
