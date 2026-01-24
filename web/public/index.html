@@ -1533,14 +1533,16 @@
         }
 
         async function openCastDialog() {
-            console.log('Cast button clicked');
+            console.log('DEBUG: openCastDialog called');
 
             try {
                 // Try Cast SDK first
                 if (typeof cast !== 'undefined' && cast.framework) {
-                    console.log('Using Cast SDK');
+                    console.log('DEBUG: Using Cast SDK');
                     const castContext = cast.framework.CastContext.getInstance();
+                    console.log('DEBUG: Requesting Cast Session...');
                     await castContext.requestSession();
+                    console.log('DEBUG: Session request completed');
 
                     castSession = castContext.getCurrentSession();
                     if (castSession) {
@@ -1593,7 +1595,7 @@
                     }
                 }
             } catch (e) {
-                console.error('Cast error:', e);
+                console.error('DEBUG: Cast error:', e);
                 if (e.name !== 'NotAllowedError') {
                     showCastInstructions();
                 }
