@@ -163,8 +163,11 @@ struct EventRow: View {
     }
     
     func getRunTitle(_ item: SportsChannel) -> String {
-        // Prefer "Team A vs Team B" if available
+        // Prefer "Team A vs Team B" if available, but show single name if identical
         if let home = item.home_team, let away = item.away_team, !home.isEmpty, !away.isEmpty {
+            if home == away {
+                return home // Show just the name if both teams are the same (e.g., "Simulcast")
+            }
             return "\(home) vs \(away)"
         }
         // Else use match_info without the tournament prefix (clever parsing)

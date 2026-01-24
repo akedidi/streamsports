@@ -161,7 +161,11 @@ export class Sports99Client {
                         const tournament = event.tournament || "";
                         const homeTeam = event.homeTeam || "";
                         const awayTeam = event.awayTeam || "";
-                        const matchInfo = `${tournament} - ${homeTeam} vs ${awayTeam}`;
+                        // If both teams are the same (e.g., "Simulcast"), show only once
+                        const teamDisplay = (homeTeam && awayTeam && homeTeam === awayTeam)
+                            ? homeTeam
+                            : `${homeTeam} vs ${awayTeam}`;
+                        const matchInfo = `${tournament} - ${teamDisplay}`;
 
                         for (const channel of (event.channels || [])) {
                             flattenedChannels.push({
