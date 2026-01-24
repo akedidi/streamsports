@@ -225,8 +225,7 @@ class AppViewModel: ObservableObject {
             }
             .sorted { ($0.displayItem.start ?? "") < ($1.displayItem.start ?? "") }
     }
-            .sorted { ($0.displayItem.start ?? "") < ($1.displayItem.start ?? "") }
-    }
+
     
     // --- EPG Helpers ---
     
