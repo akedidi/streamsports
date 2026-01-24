@@ -8,6 +8,8 @@
     <title>StreamSports99 - Premium Player</title>
     <!-- Hls.js -->
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <!-- Google Cast SDK -->
+    <script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1"></script>
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -1485,46 +1487,60 @@
             }
         }
 
-        // --- Chromecast / Remote Playback ---
+        // --- Chromecast (Google Cast SDK) ---
+        let castSession = null;
+
+        // Initialize Cast API on window load
+        window['__onGCastApiAvailable'] = function (isAvailable) {
+            if (isAvailable) {
+                initializeCastApi();
+            }
+        };
+
+        function initializeCastApi() {
+            const options = {};
+            cast.framework.CastContext.getInstance().setOptions(options);
+        }
+
         async function openCastDialog() {
-            const video = document.getElementById('videoPlayer');
+            try {
+                // Check if Cast SDK is loaded
+                if (typeof cast !== 'undefined' && cast.framework) {
+                    const castContext = cast.framework.CastContext.getInstance();
 
-            // Use Remote Playback API (standard for casting)
-            if (video.remote) {
-                try {
-                    // Check if casting is available
-                    const availability = await video.remote.watchAvailability((available) => {
-                        console.log('Cast devices available:', available);
-                    }).catch(() => null);
+                    // Request a session (opens device picker)
+                    await castContext.requestSession();
 
-                    // Open the device picker dialog
-                    await video.remote.prompt();
-                    console.log('Cast connected');
-                } catch (e) {
-                    if (e.name === 'NotSupportedError') {
-                        // Try using browser's native Cast (Chrome)
-                        if (navigator.mediaSession) {
-                            // Show keyboard shortcut hint
-                            showCastInstructions();
-                        } else {
-                            showCastInstructions();
-                        }
-                    } else if (e.name === 'NotAllowedError') {
-                        console.log('User cancelled cast');
+                    castSession = castContext.getCurrentSession();
+                    if (castSession) {
+                        // Load media on Chromecast
+                        const video = document.getElementById('videoPlayer');
+                        const mediaInfo = new chrome.cast.media.MediaInfo(video.src, 'application/x-mpegURL');
+                        const request = new chrome.cast.media.LoadRequest(mediaInfo);
+
+                        await castSession.loadMedia(request);
+                        console.log('Casting started');
+                    }
+                } else {
+                    // Fallback to Remote Playback API
+                    const video = document.getElementById('videoPlayer');
+                    if (video.remote) {
+                        await video.remote.prompt();
                     } else {
-                        console.error('Cast error:', e);
                         showCastInstructions();
                     }
                 }
-            } else {
-                // Remote Playback API not supported
-                showCastInstructions();
+            } catch (e) {
+                if (e.name !== 'NotAllowedError') {
+                    console.error('Cast error:', e);
+                    showCastInstructions();
+                }
             }
         }
 
         function showCastInstructions() {
             const toast = document.getElementById('errorToast');
-            toast.innerText = '📺 Press Ctrl+Shift+K (or ⌘+Shift+K on Mac) to cast, or use Chrome menu → Cast';
+            toast.innerText = '📺 Chromecast: Use Chrome browser and ensure devices are on same network';
             toast.style.background = '#3b82f6';
             toast.style.display = 'block';
             setTimeout(() => {
