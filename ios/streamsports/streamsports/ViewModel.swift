@@ -246,7 +246,9 @@ class AppViewModel: ObservableObject {
             // Map Key
             epgMap[normalizeName(key)] = key
             // Map Name
-            epgMap[normalizeName(value.name)] = key
+            if let name = value.name {
+                epgMap[normalizeName(name)] = key
+            }
         }
     }
     

@@ -85,7 +85,7 @@ struct EPGResponse: Codable {
 }
 
 struct EPGChannelData: Codable {
-    let name: String
+    let name: String?
     let epg_data: [EPGProgram]?
     let logo: String?
 }

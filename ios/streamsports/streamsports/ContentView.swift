@@ -37,6 +37,7 @@ struct ContentView: View {
             CustomPlayerOverlay()
         }
         .background(bgDark.edgesIgnoringSafeArea(.all))
+        .environmentObject(viewModel)
         .onAppear {
             viewModel.loadData()
         }
