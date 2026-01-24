@@ -117,8 +117,12 @@ app.get('/api/proxy', async (req, res) => {
                         absoluteUrl = new URL(trimmed, baseUrl).toString();
                     }
 
-                    // ALWAYS proxy everything (Playlists AND Segments) to handle CORS/Referer
-                    return `/api/proxy?url=${encodeURIComponent(absoluteUrl)}&referer=${encodeURIComponent(referer)}`;
+                    if (absoluteUrl.includes('.m3u8')) {
+                        return `/api/proxy?url=${encodeURIComponent(absoluteUrl)}&referer=${encodeURIComponent(referer)}`;
+                    } else {
+                        // Direct link for segments (Save bandwidth / reduce server load)
+                        return absoluteUrl;
+                    }
                 }
 
                 // Case 2: Tag with URI="..." (Encryption Keys, Audio Tracks, Subtitles)
