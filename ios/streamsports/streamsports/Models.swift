@@ -77,3 +77,22 @@ struct GroupedEvent: Identifiable {
     let displayItem: SportsChannel
     var channels: [SportsChannel]
 }
+
+// --- EPG Models ---
+struct EPGResponse: Codable {
+    let success: Bool
+    let data: [String: EPGChannelData]
+}
+
+struct EPGChannelData: Codable {
+    let name: String
+    let epg_data: [EPGProgram]?
+    let logo: String?
+}
+
+struct EPGProgram: Codable {
+    let title: String
+    let description: String?
+    let start: String
+    let stop: String
+}

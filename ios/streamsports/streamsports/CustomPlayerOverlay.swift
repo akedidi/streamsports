@@ -38,6 +38,7 @@ class PlayerUIView: UIView {
 
 struct CustomPlayerOverlay: View {
     @ObservedObject var manager = PlayerManager.shared
+    @EnvironmentObject var viewModel: AppViewModel
 // ... (rest of the struct start)
 // we need to be careful with the target replacement content to match the file structure.
 // I'll put the new structs BEFORE CustomPlayerOverlay
@@ -182,6 +183,14 @@ struct CustomPlayerOverlay: View {
                                                         Text(channel.tournament ?? channel.sport_category ?? "")
                                                             .font(.subheadline)
                                                             .foregroundColor(Color.gray)
+                                                        
+                                                        // EPG Info
+                                                        if let program = viewModel.getCurrentProgram(for: channel.name) {
+                                                            Text("\(viewModel.formatTime(program.start)) - \(program.title)")
+                                                                .font(.caption)
+                                                                .foregroundColor(.blue.opacity(0.8))
+                                                                .padding(.top, 2)
+                                                        }
                                                     }
                                                 }
                                                 .padding(10)

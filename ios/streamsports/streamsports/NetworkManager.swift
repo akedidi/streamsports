@@ -47,6 +47,26 @@ class NetworkManager: ObservableObject {
         }.resume()
     }
     
+    func fetchEPG(completion: @escaping (EPGResponse?) -> Void) {
+        guard let url = URL(string: "https://kuzwbdweiphaouenogef.supabase.co/functions/v1/epg-data?v=v12") else { return }
+        
+        URLSession.shared.dataTask(with: url) { data, _, error in
+            guard let data = data, error == nil else {
+                print("Error fetching EPG: \(error?.localizedDescription ?? "Unknown")")
+                completion(nil)
+                return
+            }
+            
+            do {
+                let response = try JSONDecoder().decode(EPGResponse.self, from: data)
+                DispatchQueue.main.async { completion(response) }
+            } catch {
+                print("Decoding error (EPG): \(error)")
+                completion(nil)
+            }
+        }.resume()
+    }
+    
     func resolveStream(url: String, completion: @escaping (String?) -> Void) {
         // We must properly encoding the URL parameter so that & and ? are escaped.
         // .urlQueryAllowed DOES NOT escape & and ?, which breaks the backend parsing.

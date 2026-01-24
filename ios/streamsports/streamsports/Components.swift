@@ -65,6 +65,8 @@ struct EventRow: View {
     let expandAction: () -> Void
     let isExpanded: Bool
     
+    @EnvironmentObject var viewModel: AppViewModel
+    
     var body: some View {
         VStack(alignment: .leading) {
             // Main Row
@@ -155,6 +157,21 @@ struct EventRow: View {
                         }
                         .padding(.leading, 60)
                         .padding(.vertical, 8)
+                        
+                        // EPG for expanded item
+                        if let program = viewModel.getCurrentProgram(for: channel.name) {
+                            HStack(spacing: 4) {
+                                Text("\(viewModel.formatTime(program.start)) -")
+                                    .font(.caption2)
+                                    .foregroundColor(.blue)
+                                Text(program.title)
+                                    .font(.caption2)
+                                    .foregroundColor(.gray)
+                                    .lineLimit(1)
+                            }
+                            .padding(.leading, 60)
+                            .padding(.bottom, 4)
+                        }
                     }
                     Divider().background(Color.gray.opacity(0.2)).padding(.leading, 60)
                 }
@@ -187,6 +204,7 @@ struct EventRow: View {
 // Simple Channel Row (for the other tab)
 struct ChannelRow: View {
     let channel: SportsChannel
+    @EnvironmentObject var viewModel: AppViewModel
     
     var body: some View {
         HStack(spacing: 12) {
@@ -208,9 +226,23 @@ struct ChannelRow: View {
             .frame(width: 44, height: 44)
             .cornerRadius(6)
             
-            Text(channel.name)
-                .font(.body)
-                .foregroundColor(.white)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(channel.name)
+                    .font(.body)
+                    .foregroundColor(.white)
+                
+                if let program = viewModel.getCurrentProgram(for: channel.name) {
+                    HStack(spacing: 4) {
+                        Text(viewModel.formatTime(program.start))
+                            .font(.caption2)
+                            .foregroundColor(.blue)
+                        Text(program.title)
+                            .font(.caption2)
+                            .foregroundColor(.gray)
+                            .lineLimit(1)
+                    }
+                }
+            }
             
             Spacer()
         }

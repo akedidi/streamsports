@@ -11,6 +11,10 @@ class AppViewModel: ObservableObject {
     @Published var liveEvents: [GroupedEvent] = []
     @Published var upcomingEvents: [GroupedEvent] = []
     
+    // EPG Data
+    private var epgData: [String: EPGChannelData] = [:]
+    private var epgMap: [String: String] = [:] // Normalized Name -> EPG Key
+    
     @Published var isLoading = false
     @Published var searchText: String = ""
     
@@ -93,6 +97,14 @@ class AppViewModel: ObservableObject {
         group.enter()
         network.fetchEvents { [weak self] items in
             self?.allEvents = items
+            group.leave()
+        }
+        
+        group.enter()
+        network.fetchEPG { [weak self] res in
+            if let data = res?.data {
+                self?.processEPG(data)
+            }
             group.leave()
         }
         
@@ -212,6 +224,62 @@ class AppViewModel: ObservableObject {
                 return true
             }
             .sorted { ($0.displayItem.start ?? "") < ($1.displayItem.start ?? "") }
+    }
+            .sorted { ($0.displayItem.start ?? "") < ($1.displayItem.start ?? "") }
+    }
+    
+    // --- EPG Helpers ---
+    
+    private func normalizeName(_ name: String) -> String {
+        let allowed = CharacterSet.alphanumerics
+        return name.lowercased()
+            .components(separatedBy: allowed.inverted).joined()
+            .replacingOccurrences(of: "hd", with: "")
+            .replacingOccurrences(of: "fhd", with: "")
+            .replacingOccurrences(of: "tv", with: "")
+    }
+    
+    private func processEPG(_ data: [String: EPGChannelData]) {
+        self.epgData = data
+        self.epgMap.removeAll()
+        
+        for (key, value) in data {
+            // Map Key
+            epgMap[normalizeName(key)] = key
+            // Map Name
+            epgMap[normalizeName(value.name)] = key
+        }
+    }
+    
+    func getCurrentProgram(for channelName: String) -> EPGProgram? {
+        let norm = normalizeName(channelName)
+        guard let key = epgMap[norm], let channelData = epgData[key], let programs = channelData.epg_data else {
+            return nil
+        }
+        
+        let now = Date()
+        let formatter = ISO8601DateFormatter()
+        // Improve formatter options if needed, but standard ISO8601 usually works
+        
+        return programs.first { p in
+            // Try standard ISO Parsing
+            // Note: API returns "2026-01-24T19:00:00+00:00" which standard ISO8601 parser handles
+            if let start = formatter.date(from: p.start),
+               let stop = formatter.date(from: p.stop) {
+                return now >= start && now < stop
+            }
+            return false
+        }
+    }
+    
+    func formatTime(_ isoString: String) -> String {
+        let isoFormatter = ISO8601DateFormatter()
+        if let date = isoFormatter.date(from: isoString) {
+            let local = DateFormatter()
+            local.dateFormat = "HH:mm"
+            return local.string(from: date)
+        }
+        return ""
     }
 }
 
