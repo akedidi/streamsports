@@ -512,6 +512,16 @@
             }
         }
 
+        /* --- Player Container --- */
+        .player-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            background: black;
+            overflow: hidden;
+        }
+
         /* --- Player Area --- */
         .player-area {
             flex: 1;
@@ -622,16 +632,20 @@
                 height: auto;
             }
 
+            .player-container {
+                width: 100%;
+                position: sticky;
+                top: 0;
+                z-index: 100;
+                order: -1;
+                background: black;
+            }
+
             .player-area {
                 width: 100%;
                 height: 250px;
                 /* Fixed height for video on mobile */
                 min-height: 250px;
-                position: sticky;
-                top: 0;
-                z-index: 100;
-                order: -1;
-                /* Ensure player is on top */
             }
 
             .sidebar {
