@@ -193,7 +193,7 @@ class AppViewModel: ObservableObject {
                 
                 return true
             }
-            .sorted { ($0.displayItem.time ?? "") < ($1.displayItem.time ?? "") }
+            .sorted { ($0.displayItem.start ?? "") < ($1.displayItem.start ?? "") }
             
         // Upcoming (Filter past events)
         let now = Date()
@@ -222,7 +222,7 @@ class AppViewModel: ObservableObject {
                 }
                 return true // Show if time parse fails (fallback)
             }
-            .sorted { ($0.displayItem.time ?? "") < ($1.displayItem.time ?? "") }
+            .sorted { ($0.displayItem.start ?? "") < ($1.displayItem.start ?? "") }
     }
 }
 
