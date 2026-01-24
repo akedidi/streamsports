@@ -1504,9 +1504,12 @@
 
         function initializeCastApi() {
             console.log('Initializing Cast API...');
-            const options = {};
+            const options = {
+                receiverApplicationId: chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID,
+                autoJoinPolicy: chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED
+            };
             cast.framework.CastContext.getInstance().setOptions(options);
-            console.log('Cast API initialized');
+            console.log('Cast API initialized with default receiver');
         }
 
         async function openCastDialog() {
