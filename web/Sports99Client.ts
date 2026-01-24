@@ -13,6 +13,7 @@ export interface Sports99Channel {
     sport_category?: string;
     status?: string;
     start?: string;
+    end?: string;
     time?: string;
     stream_url?: string;
     country?: string;
@@ -176,6 +177,7 @@ export class Sports99Client {
                                 sport_category: key, // Use the key as category (e.g. "Soccer")
                                 status: event.status || "unknown",
                                 start: event.start || "",
+                                end: event.end || "",
                                 time: event.time || "",
                                 country: event.country || "",
                                 countryIMG: event.countryIMG || "",
