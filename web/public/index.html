@@ -1492,47 +1492,56 @@
 
         // Initialize Cast API on window load
         window['__onGCastApiAvailable'] = function (isAvailable) {
+            console.log('Cast API Available:', isAvailable);
             if (isAvailable) {
-                initializeCastApi();
+                try {
+                    initializeCastApi();
+                } catch (e) {
+                    console.error('Failed to initialize Cast API:', e);
+                }
             }
         };
 
         function initializeCastApi() {
+            console.log('Initializing Cast API...');
             const options = {};
             cast.framework.CastContext.getInstance().setOptions(options);
+            console.log('Cast API initialized');
         }
 
         async function openCastDialog() {
-            try {
-                // Check if Cast SDK is loaded
-                if (typeof cast !== 'undefined' && cast.framework) {
-                    const castContext = cast.framework.CastContext.getInstance();
+            console.log('Cast button clicked');
 
-                    // Request a session (opens device picker)
+            try {
+                // Try Cast SDK first
+                if (typeof cast !== 'undefined' && cast.framework) {
+                    console.log('Using Cast SDK');
+                    const castContext = cast.framework.CastContext.getInstance();
                     await castContext.requestSession();
 
                     castSession = castContext.getCurrentSession();
                     if (castSession) {
-                        // Load media on Chromecast
                         const video = document.getElementById('videoPlayer');
                         const mediaInfo = new chrome.cast.media.MediaInfo(video.src, 'application/x-mpegURL');
                         const request = new chrome.cast.media.LoadRequest(mediaInfo);
-
                         await castSession.loadMedia(request);
                         console.log('Casting started');
                     }
                 } else {
-                    // Fallback to Remote Playback API
+                    console.log('Cast SDK not available, trying Remote Playback API');
+                    // Fallback: Remote Playback API
                     const video = document.getElementById('videoPlayer');
                     if (video.remote) {
                         await video.remote.prompt();
+                        console.log('Remote playback started');
                     } else {
+                        console.warn('No casting API available');
                         showCastInstructions();
                     }
                 }
             } catch (e) {
+                console.error('Cast error:', e);
                 if (e.name !== 'NotAllowedError') {
-                    console.error('Cast error:', e);
                     showCastInstructions();
                 }
             }
@@ -1540,13 +1549,66 @@
 
         function showCastInstructions() {
             const toast = document.getElementById('errorToast');
-            toast.innerText = '📺 Chromecast: Use Chrome browser and ensure devices are on same network';
+            toast.innerText = '📺 Chromecast requires Chrome browser on same WiFi network';
             toast.style.background = '#3b82f6';
             toast.style.display = 'block';
             setTimeout(() => {
                 toast.style.display = 'none';
                 toast.style.background = '#ef4444';
             }, 5000);
+        }
+
+        // --- AirPlay ---
+        async function toggleAirPlay() {
+            console.log('AirPlay button clicked');
+            const video = document.getElementById('videoPlayer');
+
+            // Use Remote Playback API for AirPlay
+            if (video.remote) {
+                try {
+                    console.log('Prompting for AirPlay device...');
+                    await video.remote.prompt();
+                    console.log('AirPlay started');
+                } catch (e) {
+                    console.error('AirPlay error:', e);
+                    if (e.name !== 'NotAllowedError') {
+                        const toast = document.getElementById('errorToast');
+                        toast.innerText = '📺 AirPlay: Use Safari browser for best support';
+                        toast.style.background = '#3b82f6';
+                        toast.style.display = 'block';
+                        setTimeout(() => {
+                            toast.style.display = 'none';
+                            toast.style.background = '#ef4444';
+                        }, 4000);
+                    }
+                }
+            } else {
+                console.warn('Remote Playback API not available');
+                const toast = document.getElementById('errorToast');
+                toast.innerText = '📺 AirPlay requires Safari browser';
+                toast.style.background = '#3b82f6';
+                toast.style.display = 'block';
+                setTimeout(() => {
+                    toast.style.display = 'none';
+                    toast.style.background = '#ef4444';
+                }, 4000);
+            }
+        }
+
+        // --- Picture-in-Picture ---
+        async function togglePiP() {
+            const video = document.getElementById('videoPlayer');
+            try {
+                if (document.pictureInPictureElement) {
+                    await document.exitPictureInPicture();
+                } else if (document.pictureInPictureEnabled) {
+                    await video.requestPictureInPicture();
+                } else {
+                    alert('Picture-in-Picture not supported in this browser');
+                }
+            } catch (e) {
+                console.error('PiP Error:', e);
+            }
         }
 
         init();
