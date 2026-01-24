@@ -836,6 +836,7 @@
         };
 
         let hls;
+        let currentStreamUrl = null;
 
         // --- Hydrate Event Channels with Status from TV Channels ---
         function hydrateEventChannelStatus() {
@@ -1116,16 +1117,7 @@
             return item.time || 'TBD';
         }
 
-        // Helper to format ISO/UTC string to local HH:MM
-        function getLocalTime(item) {
-            if (item.start) {
-                try {
-                    const date = new Date(item.start.replace(' ', 'T') + 'Z');
-                    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
-                } catch (e) { }
-            }
-            return item.time || 'TBD';
-        }
+
 
         function renderEventRow(group, isLive) {
             const item = group.event;
@@ -1280,6 +1272,7 @@
 
         // --- Player Logic ---
         async function playStream(item, el) {
+            currentStreamUrl = null;
             // Highlight
             document.querySelectorAll('.channel-item, .event-card').forEach(i => i.classList.remove('playing'));
             el.classList.add('playing');
@@ -1301,6 +1294,7 @@
             try {
                 const res = await fetch(`/api/stream?url=${encodeURIComponent(item.url)}`);
                 const data = await res.json();
+                if (data.success) currentStreamUrl = data.streamUrl;
 
                 if (data.success && data.streamUrl) {
                     if (Hls.isSupported()) {
@@ -1546,7 +1540,13 @@
                     castSession = castContext.getCurrentSession();
                     if (castSession) {
                         const video = document.getElementById('videoPlayer');
-                        const mediaInfo = new chrome.cast.media.MediaInfo(video.src, 'application/x-mpegURL');
+                        const streamSrc = currentStreamUrl || video.src;
+                        console.log('Casting URL:', streamSrc);
+                        if (!streamSrc) {
+                            console.error('No stream URL available to cast');
+                            return;
+                        }
+                        const mediaInfo = new chrome.cast.media.MediaInfo(streamSrc, 'application/x-mpegURL');
                         const request = new chrome.cast.media.LoadRequest(mediaInfo);
                         await castSession.loadMedia(request);
                         console.log('Casting started');
