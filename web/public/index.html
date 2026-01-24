@@ -648,69 +648,160 @@
                 <h1>Select a Stream</h1>
                 <p>Choose a live TV channel or sports event from the sidebar to start watching in HD.</p>
             </div>
-            <video id="videoPlayer" controls style="display: none;"></video>
+            <video id="videoPlayer" style="display: none; width: 100%; height: 100%; background: #000;"></video>
 
-            <!-- AirPlay Button (top-right) -->
-            <div id="airplayControls" style="
-                position: absolute; 
-                top: 12px; 
-                right: 12px; 
-                display: none; 
+            <!-- Custom Integrated Controls Bar -->
+            <div id="customControls" style="
+                position: absolute;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.7) 70%, transparent 100%);
+                padding: 12px 16px 16px 16px;
+                display: none;
+                flex-direction: column;
+                gap: 8px;
+                transition: opacity 0.3s ease;
                 z-index: 10;
             ">
-                <button id="airplayBtn" onclick="toggleAirPlay()" title="AirPlay" style="
-                    width: 40px; height: 40px; border-radius: 50%; border: none;
-                    background: rgba(0,0,0,0.6); backdrop-filter: blur(8px);
-                    color: white; cursor: pointer; display: flex; align-items: center; justify-content: center;
-                    transition: background 0.2s ease;
-                " onmouseover="this.style.background='rgba(0,0,0,0.8)'"
-                    onmouseout="this.style.background='rgba(0,0,0,0.6)'">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M5 17H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-1"></path>
-                        <polygon points="12 15 17 21 7 21 12 15" fill="currentColor" stroke="none"></polygon>
-                    </svg>
-                </button>
+                <!-- Progress Bar -->
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <input type="range" id="progressBar" min="0" max="100" value="0" style="
+                        flex: 1;
+                        height: 4px;
+                        -webkit-appearance: none;
+                        appearance: none;
+                        background: rgba(255,255,255,0.3);
+                        border-radius: 2px;
+                        outline: none;
+                        cursor: pointer;
+                    ">
+                </div>
+
+                <!-- Control Buttons Row -->
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <!-- Play/Pause -->
+                    <button id="playPauseBtn" onclick="togglePlayPause()" title="Play/Pause" style="
+                        width: 36px; height: 36px; border: none; background: transparent;
+                        color: white; cursor: pointer; display: flex; align-items: center; justify-content: center;
+                        transition: transform 0.2s ease;
+                    " onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">
+                        <svg id="playIcon" width="24" height="24" viewBox="0 0 24 24" fill="white">
+                            <path d="M8 5v14l11-7z" />
+                        </svg>
+                        <svg id="pauseIcon" width="24" height="24" viewBox="0 0 24 24" fill="white"
+                            style="display:none;">
+                            <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
+                        </svg>
+                    </button>
+
+                    <!-- Time Display -->
+                    <div style="color: white; font-size: 13px; font-family: monospace; min-width: 100px;">
+                        <span id="currentTime">0:00</span> / <span id="duration">0:00</span>
+                    </div>
+
+                    <div style="flex: 1;"></div>
+
+                    <!-- Volume -->
+                    <div style="display: flex; align-items: center; gap: 4px;">
+                        <button id="muteBtn" onclick="toggleMute()" title="Mute" style="
+                            width: 32px; height: 32px; border: none; background: transparent;
+                            color: white; cursor: pointer; display: flex; align-items: center; justify-content: center;
+                        ">
+                            <svg id="volumeIcon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor" stroke-width="2">
+                                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                                <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                            </svg>
+                        </button>
+                        <input type="range" id="volumeBar" min="0" max="100" value="100" style="
+                            width: 70px; height: 4px;
+                            -webkit-appearance: none; appearance: none;
+                            background: rgba(255,255,255,0.3); border-radius: 2px;
+                            outline: none; cursor: pointer;
+                        ">
+                    </div>
+
+                    <!-- Chromecast -->
+                    <button id="castBtn" onclick="openCastDialog()" title="Cast" style="
+                        width: 32px; height: 32px; border: none; background: transparent;
+                        color: white; cursor: pointer; display: flex; align-items: center; justify-content: center;
+                        transition: transform 0.2s ease;
+                    " onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path
+                                d="M2 16.1A5 5 0 0 1 5.9 20M2 12.05A9 9 0 0 1 9.95 20M2 8V6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6">
+                            </path>
+                            <circle cx="2" cy="20" r="2" fill="currentColor" stroke="none"></circle>
+                        </svg>
+                    </button>
+
+                    <!-- PiP -->
+                    <button id="pipBtn" onclick="togglePiP()" title="Picture-in-Picture" style="
+                        width: 32px; height: 32px; border: none; background: transparent;
+                        color: white; cursor: pointer; display: flex; align-items: center; justify-content: center;
+                        transition: transform 0.2s ease;
+                    " onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                            <rect x="11" y="9" width="9" height="7" rx="1" fill="currentColor" stroke="none"></rect>
+                        </svg>
+                    </button>
+
+                    <!-- AirPlay -->
+                    <button id="airplayBtn" onclick="toggleAirPlay()" title="AirPlay" style="
+                        width: 32px; height: 32px; border: none; background: transparent;
+                        color: white; cursor: pointer; display: flex; align-items: center; justify-content: center;
+                        transition: transform 0.2s ease;
+                    " onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M5 17H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-1"></path>
+                            <polygon points="12 15 17 21 7 21 12 15" fill="currentColor" stroke="none"></polygon>
+                        </svg>
+                    </button>
+
+                    <!-- Fullscreen -->
+                    <button id="fullscreenBtn" onclick="toggleFullscreen()" title="Fullscreen" style="
+                        width: 32px; height: 32px; border: none; background: transparent;
+                        color: white; cursor: pointer; display: flex; align-items: center; justify-content: center;
+                        transition: transform 0.2s ease;
+                    " onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path
+                                d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3">
+                            </path>
+                        </svg>
+                    </button>
+                </div>
             </div>
 
-            <!-- PiP and Chromecast (bottom-right, above native controls) -->
-            <div id="playerControls" style="
-                position: absolute; 
-                bottom: 50px; 
-                right: 12px; 
-                display: none; 
-                gap: 8px; 
-                z-index: 10;
-            ">
-                <!-- Chromecast Button -->
-                <button id="castBtn" onclick="openCastDialog()" title="Cast to device" style="
-                    width: 40px; height: 40px; border-radius: 50%; border: none;
-                    background: rgba(0,0,0,0.6); backdrop-filter: blur(8px);
-                    color: white; cursor: pointer; display: flex; align-items: center; justify-content: center;
-                    transition: background 0.2s ease;
-                " onmouseover="this.style.background='rgba(0,0,0,0.8)'"
-                    onmouseout="this.style.background='rgba(0,0,0,0.6)'">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path
-                            d="M2 16.1A5 5 0 0 1 5.9 20M2 12.05A9 9 0 0 1 9.95 20M2 8V6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6">
-                        </path>
-                        <circle cx="2" cy="20" r="2" fill="currentColor" stroke="none"></circle>
-                    </svg>
-                </button>
+            <!-- CSS for custom range inputs -->
+            <style>
+                #progressBar::-webkit-slider-thumb,
+                #volumeBar::-webkit-slider-thumb {
+                    -webkit-appearance: none;
+                    appearance: none;
+                    width: 12px;
+                    height: 12px;
+                    border-radius: 50%;
+                    background: #fff;
+                    cursor: pointer;
+                }
 
-                <!-- Picture-in-Picture Button -->
-                <button id="pipBtn" onclick="togglePiP()" title="Picture in Picture" style="
-                    width: 40px; height: 40px; border-radius: 50%; border: none;
-                    background: rgba(0,0,0,0.6); backdrop-filter: blur(8px);
-                    color: white; cursor: pointer; display: flex; align-items: center; justify-content: center;
-                    transition: background 0.2s ease;
-                " onmouseover="this.style.background='rgba(0,0,0,0.8)'"
-                    onmouseout="this.style.background='rgba(0,0,0,0.6)'">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
-                        <rect x="11" y="9" width="9" height="7" rx="1" fill="currentColor" stroke="none"></rect>
-                    </svg>
-                </button>
-            </div>
+                #progressBar::-moz-range-thumb,
+                #volumeBar::-moz-range-thumb {
+                    width: 12px;
+                    height: 12px;
+                    border-radius: 50%;
+                    background: #fff;
+                    cursor: pointer;
+                    border: none;
+                }
+            </style>
 
             <!-- Error Toast (Hidden by default) -->
             <div id="errorToast"
@@ -1173,9 +1264,9 @@
             els.placeholder.style.display = 'none';
             els.video.style.display = 'block';
 
-            // Show player controls (AirPlay top-right, PiP/Cast bottom-right)
-            document.getElementById('airplayControls').style.display = 'flex';
-            document.getElementById('playerControls').style.display = 'flex';
+            // Show custom integrated controls
+            document.getElementById('customControls').style.display = 'flex';
+            setupCustomControls();
 
             const showError = (msg) => {
                 const t = document.getElementById('errorToast');
@@ -1209,6 +1300,143 @@
                 showError("Connection Failed");
             }
         }
+
+        // --- Custom Controls Setup ---
+        let controlsSetup = false;
+        let controlsTimeout = null;
+
+        function setupCustomControls() {
+            if (controlsSetup) return;
+            controlsSetup = true;
+
+            const video = els.video;
+            const controls = document.getElementById('customControls');
+            const progressBar = document.getElementById('progressBar');
+            const currentTimeEl = document.getElementById('currentTime');
+            const durationEl = document.getElementById('duration');
+            const playIcon = document.getElementById('playIcon');
+            const pauseIcon = document.getElementById('pauseIcon');
+            const volumeBar = document.getElementById('volumeBar');
+            const playerArea = document.querySelector('.player-area');
+
+            // Format time helper
+            const formatTime = (seconds) => {
+                const mins = Math.floor(seconds / 60);
+                const secs = Math.floor(seconds % 60);
+                return `${mins}:${secs.toString().padStart(2, '0')}`;
+            };
+
+            // Update time and progress
+            video.addEventListener('timeupdate', () => {
+                const percent = (video.currentTime / video.duration) * 100;
+                progressBar.value = percent || 0;
+                currentTimeEl.textContent = formatTime(video.currentTime);
+            });
+
+            // Update duration display
+            video.addEventListener('loadedmetadata', () => {
+                durationEl.textContent = formatTime(video.duration);
+            });
+
+            // Progress bar seeking
+            progressBar.addEventListener('input', (e) => {
+                const time = (e.target.value / 100) * video.duration;
+                video.currentTime = time;
+            });
+
+            // Play/pause icon toggle
+            video.addEventListener('play', () => {
+                playIcon.style.display = 'none';
+                pauseIcon.style.display = 'block';
+            });
+
+            video.addEventListener('pause', () => {
+                playIcon.style.display = 'block';
+                pauseIcon.style.display = 'none';
+            });
+
+            // Volume control
+            volumeBar.addEventListener('input', (e) => {
+                video.volume = e.target.value / 100;
+            });
+
+            // Auto-hide controls
+            const showControls = () => {
+                controls.style.opacity = '1';
+                clearTimeout(controlsTimeout);
+                if (!video.paused) {
+                    controlsTimeout = setTimeout(() => {
+                        controls.style.opacity = '0';
+                    }, 3000);
+                }
+            };
+
+            playerArea.addEventListener('mousemove', showControls);
+            playerArea.addEventListener('mouseenter', showControls);
+            video.addEventListener('play', () => setTimeout(showControls, 100));
+            video.addEventListener('pause', () => {
+                clearTimeout(controlsTimeout);
+                controls.style.opacity = '1';
+            });
+
+            // Keyboard shortcuts
+            document.addEventListener('keydown', (e) => {
+                if (e.target.tagName === 'INPUT') return;
+
+                switch (e.key) {
+                    case ' ':
+                    case 'k':
+                        e.preventDefault();
+                        togglePlayPause();
+                        break;
+                    case 'ArrowLeft':
+                        e.preventDefault();
+                        video.currentTime = Math.max(0, video.currentTime - 5);
+                        break;
+                    case 'ArrowRight':
+                        e.preventDefault();
+                        video.currentTime = Math.min(video.duration, video.currentTime + 5);
+                        break;
+                    case 'f':
+                        e.preventDefault();
+                        toggleFullscreen();
+                        break;
+                    case 'm':
+                        e.preventDefault();
+                        toggleMute();
+                        break;
+                }
+            });
+
+            // Initial show
+            showControls();
+        }
+
+        // Control Functions
+        function togglePlayPause() {
+            const video = els.video;
+            if (video.paused) {
+                video.play();
+            } else {
+                video.pause();
+            }
+        }
+
+        function toggleMute() {
+            const video = els.video;
+            video.muted = !video.muted;
+            document.getElementById('volumeBar').value = video.muted ? 0 : video.volume * 100;
+        }
+
+        function toggleFullscreen() {
+            const playerArea = document.querySelector('.player-area');
+            if (!document.fullscreenElement) {
+                playerArea.requestFullscreen();
+            } else {
+                document.exitFullscreen();
+            }
+        }
+
         // --- AirPlay ---
         async function toggleAirPlay() {
             const video = document.getElementById('videoPlayer');
