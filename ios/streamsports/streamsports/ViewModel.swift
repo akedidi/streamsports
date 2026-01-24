@@ -175,21 +175,22 @@ class AppViewModel: ObservableObject {
         let allGroups = Array(groups.values).filter { !$0.channels.isEmpty }
         
         // 4. Separation (Live vs Upcoming) & Sorting
+        
+        let utcFormatter = DateFormatter()
+        utcFormatter.dateFormat = "yyyy-MM-dd HH:mm"
+        utcFormatter.timeZone = TimeZone(abbreviation: "UTC")
+        
         // Live
-        // Filter out "stale" live events (started more than 3 hours (180 mins) ago)
         self.liveEvents = allGroups
             .filter { group in
                 guard group.displayItem.status == "live" else { return false }
                 
                 // Check if event has ended using 'end' field
-                if let endStr = group.displayItem.end {
-                    let formatter = DateFormatter()
-                    formatter.dateFormat = "yyyy-MM-dd HH:mm"
-                    if let endDate = formatter.date(from: endStr) {
-                        // Hide immediately if current time is past end time
-                        if Date() > endDate {
-                            return false
-                        }
+                if let endStr = group.displayItem.end,
+                   let endDate = utcFormatter.date(from: endStr) {
+                    // Hide immediately if current time is past end time
+                    if Date() > endDate {
+                        return false
                     }
                 }
                 
@@ -198,31 +199,17 @@ class AppViewModel: ObservableObject {
             .sorted { ($0.displayItem.start ?? "") < ($1.displayItem.start ?? "") }
             
         // Upcoming (Filter past events)
-        let now = Date()
-        let calendar = Calendar.current
-        let currentHour = calendar.component(.hour, from: now)
-        let currentMinute = calendar.component(.minute, from: now)
-        let currentTimeValue = currentHour * 60 + currentMinute
-        
         self.upcomingEvents = allGroups
             .filter { group in
                 guard group.displayItem.status != "live" else { return false }
                 
-                // Parse Time "HH:mm"
-                if let timeStr = group.displayItem.time {
-                    let parts = timeStr.split(separator: ":")
-                    if parts.count == 2,
-                       let h = Int(parts[0]), let m = Int(parts[1]) {
-                        let eventTimeValue = h * 60 + m
-                        
-                        // Logic: If event is today, compare time.
-                        // Ideally we'd have full date, but data usually gives just time for "today's events"
-                        // Simple logic: Display if event time >= current time - 120 mins (allow seeing recently started)
-                        // User requested: "displayed from the current time"
-                        return eventTimeValue >= currentTimeValue
-                    }
+                // Only show events that haven't started yet
+                if let startStr = group.displayItem.start,
+                   let startDate = utcFormatter.date(from: startStr) {
+                    if Date() > startDate { return false }
                 }
-                return true // Show if time parse fails (fallback)
+                
+                return true
             }
             .sorted { ($0.displayItem.start ?? "") < ($1.displayItem.start ?? "") }
     }

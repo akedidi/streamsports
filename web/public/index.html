@@ -575,9 +575,7 @@
             }
 
             /* Compact switch for mobile */
-            .nav-tabs {
-                /* Removed transform */
-            }
+
 
             .nav-btn {
                 padding: 6px 8px;
@@ -1107,6 +1105,17 @@
             }
         }
 
+        // Helper to format ISO/UTC string to local HH:MM
+        function getLocalTime(item) {
+            if (item.start) {
+                try {
+                    const date = new Date(item.start.replace(' ', 'T') + 'Z');
+                    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+                } catch (e) { }
+            }
+            return item.time || 'TBD';
+        }
+
         function renderEventRow(group, isLive) {
             const item = group.event;
             const channels = group.channels;
@@ -1126,7 +1135,7 @@
             el.innerHTML = `
                 <div style="display: flex; align-items: center; gap: 8px; min-width: 60px;">
                     ${isLive ? '<span class="live-indicator"></span>' : ''}
-                    <span style="color: ${isLive ? '#ef4444' : '#888'}; font-size: 0.85rem; font-weight: 600;">${item.time || 'TBD'}</span>
+                    <span style="color: ${isLive ? '#ef4444' : '#888'}; font-size: 0.85rem; font-weight: 600;">${getLocalTime(item)}</span>
                 </div>
                 <div class="channel-info" style="flex: 1;">
                     <div class="channel-name">${matchTitle}</div>

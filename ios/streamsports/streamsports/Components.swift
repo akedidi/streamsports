@@ -78,12 +78,12 @@ struct EventRow: View {
                                     Circle().fill(Color.red).frame(width: 6, height: 6)
                                     Text("LIVE").font(.system(size: 10, weight: .bold)).foregroundColor(.red)
                                 }
-                                Text(group.displayItem.time ?? "")
+                                Text(group.displayItem.localTime)
                                     .font(.system(size: 11, weight: .medium))
                                     .foregroundColor(.white)
                             }
                         } else {
-                            Text(group.displayItem.time ?? "TBD")
+                            Text(group.displayItem.localTime)
                                 .font(.caption2)
                                 .foregroundColor(.gray)
                         }

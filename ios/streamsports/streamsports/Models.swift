@@ -29,6 +29,25 @@ struct SportsChannel: Codable, Identifiable {
     }
 }
 
+extension SportsChannel {
+    var localTime: String {
+        guard let start = start else { return time ?? "TBD" }
+        
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd HH:mm"
+        formatter.timeZone = TimeZone(abbreviation: "UTC")
+        
+        if let date = formatter.date(from: start) {
+            let outputFormatter = DateFormatter()
+            outputFormatter.dateFormat = "HH:mm"
+            outputFormatter.timeZone = .current
+            return outputFormatter.string(from: date)
+        }
+        
+        return time ?? "TBD"
+    }
+}
+
 // Wrapper for API responses
 struct ChannelResponse: Codable {
     let success: Bool?
