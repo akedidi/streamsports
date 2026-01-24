@@ -126,9 +126,9 @@ struct CustomPlayerOverlay: View {
                                     }
                                 }
                             }
-                            .frame(height: manager.isMiniPlayer ? miniPlayerHeight : geometry.size.width * 9/16)
-                            .frame(maxWidth: manager.isMiniPlayer ? 107 : .infinity, alignment: manager.isMiniPlayer ? .trailing : .leading)
-                            .padding(.trailing, manager.isMiniPlayer ? 80 : 0) // Position video directly left of controls (pause+close = 80px)
+                            .frame(width: manager.isMiniPlayer ? 107 : nil, height: manager.isMiniPlayer ? miniPlayerHeight : geometry.size.width * 9/16)
+                            .frame(maxWidth: .infinity, alignment: manager.isMiniPlayer ? .trailing : .center)
+                            .padding(.trailing, manager.isMiniPlayer ? 90 : 0) // Position video next to controls (Collé)
                             .allowsHitTesting(true) // Ensure taps work
                             
                             // 3. Info & Controls (Full Screen Overlay)
