@@ -33,6 +33,11 @@ class PlayerManager: ObservableObject {
             return
         }
         
+        // STOP previous player immediately to prevent simultaneous playback
+        self.player?.pause()
+        self.player = nil
+        self.isPlaying = false
+        
         self.currentChannel = channel
         self.isPlaying = true
         self.isMiniPlayer = false
@@ -48,6 +53,9 @@ class PlayerManager: ObservableObject {
                     print("[PlayerManager] Failed to resolve URL")
                     return
                 }
+                
+                // Verify we are still trying to play the same channel (user might have switched)
+                guard self.currentChannel?.id == channel.id else { return }
                 
                 print("[PlayerManager] Playing URL: \(url)")
                 

@@ -57,19 +57,7 @@ struct CustomPlayerOverlay: View {
                                 
                                 // OSD Overlays (Hide when controls are hidden)
                                 if !manager.isMiniPlayer && manager.showControls {
-                                    // Channel Title (Top Left)
-                                    Text(channel.name)
-                                        .font(.caption)
-                                        .fontWeight(.bold)
-                                        .foregroundColor(.white)
-                                        .padding(.horizontal, 8)
-                                        .padding(.vertical, 4)
-                                        .background(Color.black.opacity(0.6))
-                                        .cornerRadius(4)
-                                        .padding(10)
-                                        .transition(.opacity)
-                                    
-                                    // AirPlay (Top Right)
+                                    // Top Right AirPlay (Keep this as requested)
                                     VStack {
                                         HStack {
                                             Spacer()
