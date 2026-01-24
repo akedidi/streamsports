@@ -1543,7 +1543,7 @@
             console.log('Cast API initialized with default receiver');
         }
 
-        window.openCastDialog = async function() {
+        window.openCastDialog = async function () {
             console.log('DEBUG: openCastDialog called (Global)');
 
             try {
@@ -1614,14 +1614,8 @@
         }
 
         function showCastInstructions() {
-            const toast = document.getElementById('errorToast');
-            toast.innerText = '📺 Chromecast requires Chrome browser on same WiFi network';
-            toast.style.background = '#3b82f6';
-            toast.style.display = 'block';
-            setTimeout(() => {
-                toast.style.display = 'none';
-                toast.style.background = '#ef4444';
-            }, 5000);
+            // Label suppressed by user request
+            console.log('DEBUG: Chromecast warning suppressed');
         }
 
         // --- AirPlay ---
