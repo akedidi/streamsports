@@ -466,6 +466,7 @@ struct CustomPlayerOverlay: View {
         // Set to avoid duplicates if lists overlap
         var candidates: [SportsChannel] = viewModel.channels
         viewModel.liveEvents.forEach { candidates.append(contentsOf: $0.channels) }
+        viewModel.upcomingEvents.forEach { candidates.append(contentsOf: $0.channels) }
         
         var siblings: [SportsChannel] = []
         
