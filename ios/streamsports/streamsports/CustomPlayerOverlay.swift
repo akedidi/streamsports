@@ -227,26 +227,36 @@ struct CustomPlayerOverlay: View {
                         }
                     }
                     .frame(height: manager.isMiniPlayer ? miniPlayerHeight : geometry.size.height)
-                    .offset(y: manager.isMiniPlayer ? -60 : max(0, dragOffset))
-                    .edgesIgnoringSafeArea(.all) // Ensure we cover the tab bar which is likely in safe area
+                    // Offset: When mini, move up (negative y) to sit above TabBar.
+                    // TabBar is approx 90pt (content + safe area). Offset -85 ensures it clears top of TabBar.
+                    .offset(y: manager.isMiniPlayer ? -85 : max(0, dragOffset))
+                    .edgesIgnoringSafeArea(.all) 
                     // Drag Gesture to Minimize
                     .gesture(
-                        DragGesture().onChanged { value in
-                            if !manager.isMiniPlayer && value.translation.height > 0 {
-                                dragOffset = value.translation.height
-                            }
-                        }.onEnded { value in
-                            if value.translation.height > 100 {
-                                withAnimation(.spring()) {
-                                    manager.isMiniPlayer = true
-                                    dragOffset = 0
-                                }
-                            } else {
-                                withAnimation(.spring()) {
-                                    dragOffset = 0
+                        DragGesture()
+                            .onChanged { value in
+                                // Only allow dragging down
+                                if !manager.isMiniPlayer && value.translation.height > 0 {
+                                    dragOffset = value.translation.height
                                 }
                             }
-                        }
+                            .onEnded { value in
+                                // Minimize if dragged far enough OR flicked fast enough
+                                let dragThreshold: CGFloat = 100
+                                let velocityThreshold: CGFloat = 500
+                                let predictedEndTranslation = value.predictedEndTranslation.height
+                                
+                                if value.translation.height > dragThreshold || predictedEndTranslation > velocityThreshold {
+                                    withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                                        manager.isMiniPlayer = true
+                                        dragOffset = 0
+                                    }
+                                } else {
+                                    withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                                        dragOffset = 0
+                                    }
+                                }
+                            }
                     )
                 }
             }

@@ -22,19 +22,17 @@ struct ContentView: View {
             .frame(maxHeight: .infinity)
             .padding(.bottom, 60) // Space for TabBar
             
-            // Global Player
-            CustomPlayerOverlay()
-            
-            // Custom Tab Bar (Only show if not mini player to avoid overlap issues, OR allow overlap)
-            // User requested better tab bar. We'll stick it to bottom.
-            if !PlayerManager.shared.isMiniPlayer { // Hide tab bar when mini player is active? No, usually mini player sits ABOVE tab bar.
-                // But for simplicity in this ZStack architecture, let's put TabBar at very bottom
+            // Custom Tab Bar (Placed BEFORE Player overlay so player covers it)
+            if !PlayerManager.shared.isMiniPlayer {
                 VStack {
                     Spacer()
                     CustomTabBar(selectedTab: $selectedTab)
                 }
                 .edgesIgnoringSafeArea(.bottom)
             }
+            
+            // Global Player (Top of ZStack to cover everything in full screen)
+            CustomPlayerOverlay()
         }
         .background(bgDark.edgesIgnoringSafeArea(.all))
         .onAppear {
