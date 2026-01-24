@@ -30,18 +30,25 @@ struct SportsChannel: Codable, Identifiable {
 }
 
 extension SportsChannel {
-    var localTime: String {
-        guard let start = start else { return time ?? "TBD" }
-        
+    private static let utcFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd HH:mm"
         formatter.timeZone = TimeZone(abbreviation: "UTC")
+        return formatter
+    }()
+    
+    private static let localFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+        formatter.timeZone = .current
+        return formatter
+    }()
+    
+    var localTime: String {
+        guard let start = start else { return time ?? "TBD" }
         
-        if let date = formatter.date(from: start) {
-            let outputFormatter = DateFormatter()
-            outputFormatter.dateFormat = "HH:mm"
-            outputFormatter.timeZone = .current
-            return outputFormatter.string(from: date)
+        if let date = Self.utcFormatter.date(from: start) {
+            return Self.localFormatter.string(from: date)
         }
         
         return time ?? "TBD"
