@@ -55,6 +55,32 @@ extension SportsChannel {
     }
 }
 
+extension SportsChannel {
+    private static let utcFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd HH:mm"
+        formatter.timeZone = TimeZone(abbreviation: "UTC")
+        return formatter
+    }()
+    
+    private static let localFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+        formatter.timeZone = .current
+        return formatter
+    }()
+    
+    var localTime: String {
+        guard let start = start else { return time ?? "TBD" }
+        
+        if let date = Self.utcFormatter.date(from: start) {
+            return Self.localFormatter.string(from: date)
+        }
+        
+        return time ?? "TBD"
+    }
+}
+
 // Wrapper for API responses
 struct ChannelResponse: Codable {
     let success: Bool?
