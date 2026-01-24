@@ -827,8 +827,13 @@
         let state = {
             channels: [],
             events: [],
-            tab: 'events',
-            filter: 'All'
+            epg: {}, // id: { name, programs }
+            epgMap: new Map(), // normalized_name -> epg_id
+            currentFilter: 'all',
+            currentTab: 'events',
+            loading: false,
+            tab: 'events', // Keep existing tab property
+            filter: 'All' // Keep existing filter property
         };
 
         const els = {
@@ -897,6 +902,7 @@
 
                 renderFilters();
                 renderContent();
+                fetchEPG(); // Fetch EPG data after initial content render
             } catch (err) {
                 console.error(err);
                 alert("Failed to load initial data");
@@ -977,6 +983,79 @@
             }
         }
 
+        // --- EPG Logic ---
+        async function fetchEPG() {
+            try {
+                // Check local storage first
+                const cached = localStorage.getItem('epgData');
+                const cachedTime = localStorage.getItem('epgTime');
+                const now = Date.now();
+
+                // Cache for 2 hours
+                if (cached && cachedTime && (now - parseInt(cachedTime) < 7200000)) {
+                    processEPG(JSON.parse(cached));
+                    return;
+                }
+
+                console.log('DEBUG: Fetching EPG Data...');
+                const res = await fetch('https://kuzwbdweiphaouenogef.supabase.co/functions/v1/epg-data?v=v12');
+                const data = await res.json();
+
+                if (data.success) {
+                    processEPG(data.data);
+                    localStorage.setItem('epgData', JSON.stringify(data.data));
+                    localStorage.setItem('epgTime', now.toString());
+                }
+            } catch (e) {
+                console.error('EPG Fetch Error:', e);
+            }
+        }
+
+        function normalizeName(name) {
+            return name.toLowerCase().replace(/[^a-z0-9]/g, '').replace(/(hd|fhd|tv)$/g, '');
+        }
+
+        function processEPG(data) {
+            state.epg = data;
+            state.epgMap.clear();
+
+            Object.keys(data).forEach(key => {
+                // Map the key itself
+                state.epgMap.set(normalizeName(key), key);
+                // Map the display name
+                if (data[key].name) {
+                    state.epgMap.set(normalizeName(data[key].name), key);
+                }
+            });
+            console.log('DEBUG: EPG Processed. Map size:', state.epgMap.size);
+            renderContent(); // Refresh list to show EPG
+        }
+
+        function getCurrentProgram(channelName) {
+            if (!state.epg || !channelName) return null;
+
+            const norm = normalizeName(channelName);
+            const epgKey = state.epgMap.get(norm);
+            if (!epgKey) return null;
+
+            const channelData = state.epg[epgKey];
+            if (!channelData || !channelData.epg_data) return null;
+
+            const now = new Date();
+            const program = channelData.epg_data.find(p => {
+                const start = new Date(p.start);
+                const stop = new Date(p.stop);
+                return now >= start && now < stop;
+            });
+
+            return program ? { ...program, channelLogo: channelData.logo } : null; // Logo might not be there but good to have
+        }
+
+        function formatEPGTime(dateStr) {
+            const date = new Date(dateStr);
+            return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+
         // --- Rendering Content ---
         function renderContent() {
             els.contentList.innerHTML = '';
@@ -1019,16 +1098,24 @@
                     ? `<span class="status-badge online">● Online</span>`
                     : `<span class="status-badge offline">○ Offline</span>`;
 
+                const epgProgram = getCurrentProgram(item.name);
+
                 el.innerHTML = `
-                    <img src="${imgUrl}" class="channel-logo" loading="lazy" onerror="this.src='${fallbackLogo}'">
-                    <div class="channel-info">
-                        <div class="channel-name">${item.name}</div>
-                        <div class="channel-meta">
-                            ${getStatusHtml(getChannelStatus(item))}
-                            <span class="flag-badge">${item.code || 'TV'}</span>
-                        </div>
+                <img src="${imgUrl}" class="channel-logo" loading="lazy" onerror="this.src='${fallbackLogo}'">
+                <div class="channel-info">
+                    <div class="channel-name">${item.name}</div>
+                    <div class="channel-meta">
+                        <span class="flag-badge">${item.code || 'TV'}</span>
+                        ${epgProgram ? `
+                            <span style="color: #6366f1; margin: 0 4px;">•</span>
+                            <span style="color: #a1a1aa; font-size: 0.85em; overflow: hidden; text-overflow: ellipsis;">
+                                ${formatEPGTime(epgProgram.start)} - ${epgProgram.title}
+                            </span>
+                        ` : ''}
                     </div>
-                `;
+                </div>
+                ${item.status === 'online' ? '<span class="status-badge online">● LIVE</span>' : ''}
+            `;
                 els.contentList.appendChild(el);
             });
         }
@@ -1681,7 +1768,8 @@
             }
         }
 
-        console.log('DEBUG: Script parsing finished, calling init()');
+        console.log('DEBUG: Script parsing finished, calling init() and EPG');
+        fetchEPG(); // Start fetching EPG
         init();
         var currentTab = 'channels'; // Global needed for stats
     </script>
