@@ -14,17 +14,18 @@ struct SportsChannel: Codable, Identifiable {
     let sport_category: String?
     let status: String?
     let start: String?
+    let end: String?
     let time: String?
     let country: String?
     let countryIMG: String?
     let gameID: String?
     
     func with(status: String) -> SportsChannel {
-        return SportsChannel(name: name, channel_name: channel_name, code: code, url: url, image: image, tournament: tournament, home_team: home_team, away_team: away_team, match_info: match_info, sport_category: sport_category, status: status, start: start, time: time, country: country, countryIMG: countryIMG, gameID: gameID)
+        return SportsChannel(name: name, channel_name: channel_name, code: code, url: url, image: image, tournament: tournament, home_team: home_team, away_team: away_team, match_info: match_info, sport_category: sport_category, status: status, start: start, end: end, time: time, country: country, countryIMG: countryIMG, gameID: gameID)
     }
     
     enum CodingKeys: String, CodingKey {
-        case name, channel_name, code, url, image, tournament, home_team, away_team, match_info, sport_category, status, start, time, country, countryIMG, gameID
+        case name, channel_name, code, url, image, tournament, home_team, away_team, match_info, sport_category, status, start, end, time, country, countryIMG, gameID
     }
 }
 

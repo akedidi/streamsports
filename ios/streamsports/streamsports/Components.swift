@@ -71,17 +71,24 @@ struct EventRow: View {
             Button(action: expandAction) {
                 HStack(spacing: 12) {
                     // Time / Live Status
-                    VStack {
+                    VStack(spacing: 2) {
                         if group.displayItem.status == "live" {
-                            Circle().fill(Color.red).frame(width: 8, height: 8)
-                            Text("LIVE").font(.caption2).foregroundColor(.red).bold()
+                            VStack(spacing: 2) {
+                                HStack(spacing: 2) {
+                                    Circle().fill(Color.red).frame(width: 6, height: 6)
+                                    Text("LIVE").font(.system(size: 10, weight: .bold)).foregroundColor(.red)
+                                }
+                                Text(group.displayItem.time ?? "")
+                                    .font(.system(size: 11, weight: .medium))
+                                    .foregroundColor(.white)
+                            }
                         } else {
                             Text(group.displayItem.time ?? "TBD")
                                 .font(.caption2)
                                 .foregroundColor(.gray)
                         }
                     }
-                    .frame(width: 45)
+                    .frame(width: 50)
                     
                     // Detail Column
                     VStack(alignment: .leading, spacing: 4) {

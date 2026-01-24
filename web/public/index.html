@@ -862,8 +862,32 @@
 
             // Convert to array and separate live/upcoming
             const uniqueEvents = Array.from(groupedEvents.values());
-            const liveEvents = uniqueEvents.filter(g => g.event.status === 'live');
-            const upcomingEvents = uniqueEvents.filter(g => g.event.status !== 'live');
+
+            const liveEvents = uniqueEvents.filter(g => {
+                const item = g.event;
+                if (item.status === 'live') {
+                    // Stale check using 'end' date
+                    if (item.end) {
+                        const endDate = new Date(item.end.replace(' ', 'T')); // Parse "YYYY-MM-DD HH:mm"
+                        // Buffer: Hide if current time is past end time + 15 mins
+                        const diff = (new Date() - endDate) / 1000 / 60; // diff in minutes from now
+                        if (diff > 15) {
+                            // Event ended > 15 mins ago
+                            return false;
+                        }
+                    } else if (item.start) {
+                        // Fallback to start time heuristic if 'end' is missing
+                        const startDate = new Date(item.start.replace(' ', 'T'));
+                        const startDiff = (new Date() - startDate) / 1000 / 60;
+                        if (startDiff > 180) return false;
+                    }
+                    // Sort live by time
+                    return true;
+                }
+                return false;
+            }).sort((a, b) => (a.event.time || '').localeCompare(b.event.time || ''));
+
+            const upcomingEvents = uniqueEvents.filter(g => g.event.status !== 'live').sort((a, b) => (a.event.time || '').localeCompare(b.event.time || ''));
 
             // Render Live Events Section
             if (liveEvents.length > 0) {

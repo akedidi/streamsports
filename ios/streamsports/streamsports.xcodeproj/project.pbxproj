@@ -6,13 +6,33 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		3802AD62C8470831BF953B4E /* Pods_streamsports.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C0A4B929436402E934F3D681 /* Pods_streamsports.framework */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
+		327EC9F1598DFF4B66AACF56 /* Pods-streamsports.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-streamsports.release.xcconfig"; path = "Target Support Files/Pods-streamsports/Pods-streamsports.release.xcconfig"; sourceTree = "<group>"; };
+		6558662A351B4CCD213AE403 /* Pods-streamsports.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-streamsports.debug.xcconfig"; path = "Target Support Files/Pods-streamsports/Pods-streamsports.debug.xcconfig"; sourceTree = "<group>"; };
 		A2BADE422F23A742009C44F4 /* streamsports.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = streamsports.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		C0A4B929436402E934F3D681 /* Pods_streamsports.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_streamsports.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		A28DDB0C2F23D3950006A766 /* Exceptions for "streamsports" folder in "streamsports" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = A2BADE412F23A742009C44F4 /* streamsports */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		A2BADE442F23A742009C44F4 /* streamsports */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				A28DDB0C2F23D3950006A766 /* Exceptions for "streamsports" folder in "streamsports" target */,
+			);
 			path = streamsports;
 			sourceTree = "<group>";
 		};
@@ -23,6 +43,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				3802AD62C8470831BF953B4E /* Pods_streamsports.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -34,6 +55,8 @@
 			children = (
 				A2BADE442F23A742009C44F4 /* streamsports */,
 				A2BADE432F23A742009C44F4 /* Products */,
+				DF98913174D1DB21C0651CC8 /* Pods */,
+				CEAB219DF77E59074A4D1D84 /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
@@ -45,6 +68,24 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
+		CEAB219DF77E59074A4D1D84 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				C0A4B929436402E934F3D681 /* Pods_streamsports.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		DF98913174D1DB21C0651CC8 /* Pods */ = {
+			isa = PBXGroup;
+			children = (
+				6558662A351B4CCD213AE403 /* Pods-streamsports.debug.xcconfig */,
+				327EC9F1598DFF4B66AACF56 /* Pods-streamsports.release.xcconfig */,
+			);
+			name = Pods;
+			path = Pods;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -52,9 +93,11 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = A2BADE4D2F23A745009C44F4 /* Build configuration list for PBXNativeTarget "streamsports" */;
 			buildPhases = (
+				098990B8E0220BBA7AA887BD /* [CP] Check Pods Manifest.lock */,
 				A2BADE3E2F23A742009C44F4 /* Sources */,
 				A2BADE3F2F23A742009C44F4 /* Frameworks */,
 				A2BADE402F23A742009C44F4 /* Resources */,
+				0A2A0DAFE65B5F741A20685B /* [CP] Copy Pods Resources */,
 			);
 			buildRules = (
 			);
@@ -64,8 +107,6 @@
 				A2BADE442F23A742009C44F4 /* streamsports */,
 			);
 			name = streamsports;
-			packageProductDependencies = (
-			);
 			productName = streamsports;
 			productReference = A2BADE422F23A742009C44F4 /* streamsports.app */;
 			productType = "com.apple.product-type.application";
@@ -113,6 +154,48 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		098990B8E0220BBA7AA887BD /* [CP] Check Pods Manifest.lock */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"${PODS_PODFILE_DIR_PATH}/Podfile.lock",
+				"${PODS_ROOT}/Manifest.lock",
+			);
+			name = "[CP] Check Pods Manifest.lock";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/Pods-streamsports-checkManifestLockResult.txt",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
+			showEnvVarsInLog = 0;
+		};
+		0A2A0DAFE65B5F741A20685B /* [CP] Copy Pods Resources */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-streamsports/Pods-streamsports-resources-${CONFIGURATION}-input-files.xcfilelist",
+			);
+			name = "[CP] Copy Pods Resources";
+			outputFileListPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-streamsports/Pods-streamsports-resources-${CONFIGURATION}-output-files.xcfilelist",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-streamsports/Pods-streamsports-resources.sh\"\n";
+			showEnvVarsInLog = 0;
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		A2BADE3E2F23A742009C44F4 /* Sources */ = {
@@ -162,7 +245,7 @@
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
@@ -225,7 +308,7 @@
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
@@ -246,13 +329,16 @@
 		};
 		A2BADE4E2F23A745009C44F4 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 6558662A351B4CCD213AE403 /* Pods-streamsports.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_STYLE = Manual;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = streamsports/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -263,8 +349,9 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = anis..streamsports;
+				PRODUCT_BUNDLE_IDENTIFIER = anis.com.streamsports;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
@@ -277,13 +364,16 @@
 		};
 		A2BADE4F2F23A745009C44F4 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 327EC9F1598DFF4B66AACF56 /* Pods-streamsports.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_STYLE = Manual;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = streamsports/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -294,8 +384,9 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = anis..streamsports;
+				PRODUCT_BUNDLE_IDENTIFIER = anis.com.streamsports;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;

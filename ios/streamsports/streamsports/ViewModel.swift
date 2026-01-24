@@ -18,6 +18,22 @@ class AppViewModel: ObservableObject {
     @Published var channelSearchText: String = ""
     @Published var selectedCountry: String? = nil
     
+    // Events Filtering
+    @Published var selectedCategory: String = "All"
+    
+    var availableCategories: [String] {
+        let categories = allEvents.compactMap { $0.sport_category }.filter { !$0.isEmpty }
+        var unique = Array(Set(categories)).sorted()
+        
+        // Ensure standard order: All, Soccer, then others
+        if unique.contains("Soccer") {
+            unique.removeAll { $0 == "Soccer" }
+            unique.insert("Soccer", at: 0)
+        }
+        unique.insert("All", at: 0)
+        return unique
+    }
+    
     // Derived Channels
     var filteredChannels: [SportsChannel] {
         var res = channels
@@ -52,6 +68,16 @@ class AppViewModel: ObservableObject {
                 self?.filterAndGroupEvents()
             }
             .store(in: &cancellables)
+            
+        // Listen to category changes
+        $selectedCategory
+            .sink { [weak self] _ in
+                // Need to dispatch async to avoid update cycles or simply call
+                DispatchQueue.main.async {
+                    self?.filterAndGroupEvents()
+                }
+            }
+            .store(in: &cancellables)
     }
     
     func loadData() {
@@ -78,36 +104,62 @@ class AppViewModel: ObservableObject {
     
     private func filterAndGroupEvents() {
         // 1. Filter by Search
-        let filtered = searchText.isEmpty ? allEvents : allEvents.filter {
+        var filtered = searchText.isEmpty ? allEvents : allEvents.filter {
             $0.name.localizedCaseInsensitiveContains(searchText) ||
             ($0.league ?? "").localizedCaseInsensitiveContains(searchText) ||
             ($0.home_team ?? "").localizedCaseInsensitiveContains(searchText) ||
             ($0.away_team ?? "").localizedCaseInsensitiveContains(searchText)
         }
         
-        // 2. Grouping & Hydration
+        // 2. Filter by Category
+        if selectedCategory != "All" {
+            filtered = filtered.filter { $0.sport_category == selectedCategory }
+        }
+        
+        // 3. Grouping & Hydration
         var groups: [String: GroupedEvent] = [:]
         
         // Create a lookup map for global channels for faster status access
-        // Map Name -> Status, Code -> Status
+        // Map Name -> Status, Code -> Status (Normalized: Lowercase + Trimmed)
         var statusMap: [String: String] = [:]
+        
+        func normalize(_ s: String?) -> String? {
+            return s?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        }
+        
         for c in self.channels {
             if let s = c.status {
-                statusMap[c.name] = s
-                if let code = c.code { statusMap[code] = s }
+                if let name = normalize(c.name) { statusMap[name] = s }
+                if let code = normalize(c.code) { statusMap[code] = s }
+                // Also map channel_name if different
+                if let cname = normalize(c.channel_name), cname != normalize(c.name) {
+                    statusMap[cname] = s
+                }
             }
         }
         
         for item in filtered {
             let key = item.gameID ?? item.match_info ?? item.name
             
-            // HYDRATION: Check if this item (channel) has status. If not, lookup.
+            // HYDRATION: Check if this item (channel) has status. If not (or if offline), lookup global status.
             var channelItem = item
-            if channelItem.status == nil {
-                // Try looking up by code or name
-                if let code = channelItem.code, let s = statusMap[code] {
-                    channelItem = channelItem.with(status: s)
-                } else if let s = statusMap[channelItem.name] {
+            if channelItem.status == nil || channelItem.status?.lowercased() == "offline" {
+                var foundStatus: String? = nil
+                
+                // 1. Try Code
+                if let code = normalize(channelItem.code), let s = statusMap[code] {
+                    foundStatus = s
+                }
+                // 2. Try Name
+                else if let name = normalize(channelItem.name), let s = statusMap[name] {
+                    foundStatus = s
+                }
+                // 3. Try Channel Name
+                else if let cname = normalize(channelItem.channel_name), let s = statusMap[cname] {
+                    foundStatus = s
+                }
+                
+                if let s = foundStatus {
                     channelItem = channelItem.with(status: s)
                 }
             }
@@ -120,10 +172,28 @@ class AppViewModel: ObservableObject {
         
         let allGroups = Array(groups.values)
         
-        // 3. Separation (Live vs Upcoming) & Sorting
+        // 4. Separation (Live vs Upcoming) & Sorting
         // Live
+        // Filter out "stale" live events (started more than 3 hours (180 mins) ago)
         self.liveEvents = allGroups
-            .filter { $0.displayItem.status == "live" }
+            .filter { group in
+                guard group.displayItem.status == "live" else { return false }
+                
+                // Check if event has ended using 'end' field
+                if let endStr = group.displayItem.end {
+                    let formatter = DateFormatter()
+                    formatter.dateFormat = "yyyy-MM-dd HH:mm"
+                    if let endDate = formatter.date(from: endStr) {
+                        // Buffer: Hide if current time is past end time + 15 mins (allow for extra time)
+                        // 15 * 60 = 900 seconds
+                        if Date().timeIntervalSince(endDate) > 900 {
+                            return false
+                        }
+                    }
+                }
+                
+                return true
+            }
             .sorted { ($0.displayItem.time ?? "") < ($1.displayItem.time ?? "") }
             
         // Upcoming (Filter past events)

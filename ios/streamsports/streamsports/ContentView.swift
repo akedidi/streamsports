@@ -64,6 +64,22 @@ struct EventsView: View {
                 .padding(.top)
                 .padding(.bottom, 8)
             
+            // Category Filters
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(viewModel.availableCategories, id: \.self) { category in
+                        FilterChip(
+                            title: category == "All" ? "All Sports" : category,
+                            isSelected: viewModel.selectedCategory == category
+                        ) {
+                            viewModel.selectedCategory = category
+                        }
+                    }
+                }
+                .padding(.horizontal)
+            }
+            .padding(.bottom, 8)
+            
             if viewModel.isLoading {
                 Spacer()
                 ProgressView().progressViewStyle(CircularProgressViewStyle(tint: .white))
