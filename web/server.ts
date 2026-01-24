@@ -83,9 +83,18 @@ app.get('/api/proxy', async (req, res) => {
     try {
         const response = await axios.get(targetUrl, {
             headers: {
-                'Referer': referer,
+                // Use simplified Referer (Origin only) to avoid leaking params and look cleaner
+                'Referer': new URL(referer).origin + '/',
                 'Origin': new URL(referer).origin,
-                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+                'Accept': '*/*',
+                'Accept-Language': 'en-US,en;q=0.9',
+                'Sec-Ch-Ua': '"Google Chrome";v="121", "Chromium";v="121", "Not_A Brand";v="24"',
+                'Sec-Ch-Ua-Mobile': '?0',
+                'Sec-Ch-Ua-Platform': '"Windows"',
+                'Sec-Fetch-Dest': 'empty',
+                'Sec-Fetch-Mode': 'cors',
+                'Sec-Fetch-Site': 'cross-site',
             },
             responseType: 'arraybuffer'
         });
