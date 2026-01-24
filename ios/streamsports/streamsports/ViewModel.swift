@@ -93,11 +93,12 @@ class AppViewModel: ObservableObject {
         group.enter()
         network.fetchEvents { [weak self] items in
             self?.allEvents = items
-            self?.filterAndGroupEvents()
             group.leave()
         }
         
         group.notify(queue: .main) {
+            // Hydrate events with channel status AFTER both are loaded
+            self.filterAndGroupEvents()
             self.isLoading = false
         }
     }

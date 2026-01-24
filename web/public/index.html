@@ -684,6 +684,38 @@
 
         let hls;
 
+        // --- Hydrate Event Channels with Status from TV Channels ---
+        function hydrateEventChannelStatus() {
+            // Build a lookup map from TV channels: normalized name -> status
+            const statusMap = new Map();
+            for (const ch of state.channels) {
+                if (ch.name && ch.status) {
+                    const key = ch.name.toLowerCase().trim();
+                    statusMap.set(key, ch.status.toLowerCase());
+                }
+            }
+
+            // Update each event's channels with status from the map
+            for (const event of state.events) {
+                const channelName = event.channel_name || event.name || '';
+                const key = channelName.toLowerCase().trim();
+
+                if (statusMap.has(key)) {
+                    event.channel_status = statusMap.get(key);
+                } else {
+                    // Try partial match (event channel name contains TV channel name or vice versa)
+                    for (const [mapKey, mapStatus] of statusMap) {
+                        if (key.includes(mapKey) || mapKey.includes(key)) {
+                            event.channel_status = mapStatus;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            console.log('Hydrated channel status for', state.events.length, 'events');
+        }
+
         // --- Initialization ---
         async function init() {
             try {
@@ -697,6 +729,9 @@
 
                 state.channels = cData.channels || [];
                 state.events = eData.events || [];
+
+                // Hydrate event channels with status from TV channels
+                hydrateEventChannelStatus();
 
                 console.log("Loaded Events:", state.events.length);
 
@@ -1014,20 +1049,14 @@
 
         // --- Helpers ---
         function getChannelStatus(item) {
-            // Priority 1: Item itself has status
-            if (item.status) return item.status.toLowerCase();
-
-            // Priority 2: Lookup in global channels list (fallback)
-            // Try by code first
-            if (item.code) {
-                const found = state.channels.find(c => c.code && c.code.toLowerCase() === item.code.toLowerCase());
-                if (found && found.status) return found.status.toLowerCase();
+            // Priority 1: Use hydrated channel_status (from hydrateEventChannelStatus)
+            if (item.channel_status) {
+                return item.channel_status;
             }
 
-            // Try by name
-            if (item.name) {
-                const found = state.channels.find(c => c.name === item.name);
-                if (found && found.status) return found.status.toLowerCase();
+            // Priority 2: Item's own status (for TV channels)
+            if (item.status) {
+                return item.status.toLowerCase();
             }
 
             return 'offline'; // Default
