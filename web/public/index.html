@@ -1294,7 +1294,12 @@
             try {
                 const res = await fetch(`/api/stream?url=${encodeURIComponent(item.url)}`);
                 const data = await res.json();
-                if (data.success) currentStreamUrl = data.streamUrl;
+                if (data.success) {
+                    console.log('DEBUG: Stream URL fetched:', data.streamUrl);
+                    currentStreamUrl = data.streamUrl;
+                } else {
+                    console.error('DEBUG: Failed to fetch stream URL:', data);
+                }
 
                 if (data.success && data.streamUrl) {
                     if (Hls.isSupported()) {
@@ -1541,15 +1546,39 @@
                     if (castSession) {
                         const video = document.getElementById('videoPlayer');
                         const streamSrc = currentStreamUrl || video.src;
-                        console.log('Casting URL:', streamSrc);
+                        console.log('DEBUG: Attempting to cast URL:', streamSrc);
+
                         if (!streamSrc) {
-                            console.error('No stream URL available to cast');
+                            console.error('DEBUG: No stream URL available explicitly or in video.src');
+                            showCastInstructions();
                             return;
                         }
+
+                        // Verify if URL is valid (basic check)
+                        if (!streamSrc.startsWith('http')) {
+                            console.warn('DEBUG: URL does not start with http(s), might fail on Chromecast:', streamSrc);
+                        }
+
                         const mediaInfo = new chrome.cast.media.MediaInfo(streamSrc, 'application/x-mpegURL');
+                        mediaInfo.metadata = new chrome.cast.media.GenericMediaMetadata();
+                        mediaInfo.metadata.title = 'StreamSports Event';
+
                         const request = new chrome.cast.media.LoadRequest(mediaInfo);
-                        await castSession.loadMedia(request);
-                        console.log('Casting started');
+                        console.log('DEBUG: Sending LoadRequest to Chromecast...', request);
+
+                        try {
+                            await castSession.loadMedia(request);
+                            console.log('DEBUG: Casting started successfully');
+                        } catch (loadError) {
+                            console.error('DEBUG: castSession.loadMedia failed', loadError);
+                            if (loadError.code) console.error('DEBUG: Error Code:', loadError.code);
+                            if (loadError.description) console.error('DEBUG: Error Description:', loadError.description);
+                            // Show toast
+                            const t = document.getElementById('errorToast');
+                            t.innerText = 'Chromecast Load Error: ' + (loadError.description || loadError.code || 'Unknown');
+                            t.style.display = 'block';
+                            setTimeout(() => t.style.display = 'none', 5000);
+                        }
                     }
                 } else {
                     console.log('Cast SDK not available, trying Remote Playback API');
