@@ -817,6 +817,7 @@
     </div>
 
     <script>
+        console.log('DEBUG: StreamSports Custom Script Loaded');
         // --- State Management ---
         let state = {
             channels: [],
@@ -1430,6 +1431,16 @@
                 }
             });
 
+            // Manual attach for Cast (Debug)
+            const castBtn = document.getElementById('castBtn');
+            if (castBtn) {
+                console.log('DEBUG: Attaching manual click listener to CastBtn');
+                castBtn.addEventListener('click', (e) => {
+                    console.log('DEBUG: CastBtn clicked (Manual Listener)');
+                    if (window.openCastDialog) window.openCastDialog();
+                });
+            }
+
             // Initial show
             showControls();
         }
@@ -1532,8 +1543,8 @@
             console.log('Cast API initialized with default receiver');
         }
 
-        async function openCastDialog() {
-            console.log('DEBUG: openCastDialog called');
+        window.openCastDialog = async function() {
+            console.log('DEBUG: openCastDialog called (Global)');
 
             try {
                 // Try Cast SDK first
