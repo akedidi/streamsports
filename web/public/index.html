@@ -650,36 +650,36 @@
             </div>
             <video id="videoPlayer" controls style="display: none;"></video>
 
-            <!-- Player Controls Overlay -->
+            <!-- Player Controls Overlay (bottom-right, left of native controls) -->
             <div id="playerControls"
-                style="position: absolute; top: 16px; right: 16px; display: none; gap: 8px; z-index: 10;">
-                <!-- Picture-in-Picture Button -->
-                <button id="pipBtn" onclick="togglePiP()" title="Picture in Picture" style="
-                    width: 44px; height: 44px; border-radius: 50%; border: none;
-                    background: rgba(0,0,0,0.6); backdrop-filter: blur(10px);
-                    color: white; cursor: pointer; display: flex; align-items: center; justify-content: center;
-                    transition: all 0.2s ease;
-                " onmouseover="this.style.background='rgba(255,255,255,0.2)'"
-                    onmouseout="this.style.background='rgba(0,0,0,0.6)'">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
-                        <rect x="11" y="9" width="9" height="7" rx="1" fill="currentColor" stroke="none"></rect>
-                    </svg>
-                </button>
-
-                <!-- Chromecast Button -->
+                style="position: absolute; bottom: 12px; right: 140px; display: none; gap: 8px; z-index: 10;">
+                <!-- Chromecast Button (leftmost) -->
                 <button id="castBtn" onclick="openCastDialog()" title="Cast to device" style="
-                    width: 44px; height: 44px; border-radius: 50%; border: none;
-                    background: rgba(0,0,0,0.6); backdrop-filter: blur(10px);
+                    width: 36px; height: 36px; border-radius: 4px; border: none;
+                    background: transparent;
                     color: white; cursor: pointer; display: flex; align-items: center; justify-content: center;
                     transition: all 0.2s ease;
                 " onmouseover="this.style.background='rgba(255,255,255,0.2)'"
-                    onmouseout="this.style.background='rgba(0,0,0,0.6)'">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    onmouseout="this.style.background='transparent'">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path
                             d="M2 16.1A5 5 0 0 1 5.9 20M2 12.05A9 9 0 0 1 9.95 20M2 8V6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6">
                         </path>
                         <circle cx="2" cy="20" r="2" fill="currentColor" stroke="none"></circle>
+                    </svg>
+                </button>
+
+                <!-- Picture-in-Picture Button (right of Cast) -->
+                <button id="pipBtn" onclick="togglePiP()" title="Picture in Picture" style="
+                    width: 36px; height: 36px; border-radius: 4px; border: none;
+                    background: transparent;
+                    color: white; cursor: pointer; display: flex; align-items: center; justify-content: center;
+                    transition: all 0.2s ease;
+                " onmouseover="this.style.background='rgba(255,255,255,0.2)'"
+                    onmouseout="this.style.background='transparent'">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                        <rect x="11" y="9" width="9" height="7" rx="1" fill="currentColor" stroke="none"></rect>
                     </svg>
                 </button>
             </div>
@@ -1197,22 +1197,52 @@
             }
         }
 
-        // --- Chromecast ---
-        function openCastDialog() {
-            // Check for native Cast API or prompt user
-            if (window.chrome && window.chrome.cast) {
-                // Chrome's native casting - this triggers the browser cast dialog
-                const video = document.getElementById('videoPlayer');
-                if (video.remote && video.remote.state === 'connected') {
-                    video.remote.prompt();
-                } else {
-                    // Fallback: show native browser cast selector
-                    alert('Click the Cast icon in your browser toolbar to cast this video');
+        // --- Chromecast / Remote Playback ---
+        async function openCastDialog() {
+            const video = document.getElementById('videoPlayer');
+
+            // Use Remote Playback API (standard for casting)
+            if (video.remote) {
+                try {
+                    // Check if casting is available
+                    const availability = await video.remote.watchAvailability((available) => {
+                        console.log('Cast devices available:', available);
+                    }).catch(() => null);
+
+                    // Open the device picker dialog
+                    await video.remote.prompt();
+                    console.log('Cast connected');
+                } catch (e) {
+                    if (e.name === 'NotSupportedError') {
+                        // Try using browser's native Cast (Chrome)
+                        if (navigator.mediaSession) {
+                            // Show keyboard shortcut hint
+                            showCastInstructions();
+                        } else {
+                            showCastInstructions();
+                        }
+                    } else if (e.name === 'NotAllowedError') {
+                        console.log('User cancelled cast');
+                    } else {
+                        console.error('Cast error:', e);
+                        showCastInstructions();
+                    }
                 }
             } else {
-                // Browser doesn't have Cast API - show instructions
-                alert("To cast: Use your browser's Cast feature (Chrome menu → Cast) or enable Remote Playback in browser settings");
+                // Remote Playback API not supported
+                showCastInstructions();
             }
+        }
+
+        function showCastInstructions() {
+            const toast = document.getElementById('errorToast');
+            toast.innerText = '📺 Press Ctrl+Shift+K (or ⌘+Shift+K on Mac) to cast, or use Chrome menu → Cast';
+            toast.style.background = '#3b82f6';
+            toast.style.display = 'block';
+            setTimeout(() => {
+                toast.style.display = 'none';
+                toast.style.background = '#ef4444';
+            }, 5000);
         }
 
         init();
