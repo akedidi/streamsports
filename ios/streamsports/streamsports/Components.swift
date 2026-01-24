@@ -123,10 +123,21 @@ struct EventRow: View {
                         PlayerManager.shared.play(channel: channel)
                     }) {
                         HStack {
+                            // Status Badge (Left of Flag)
+                            if let status = channel.status?.lowercased() {
+                                Circle()
+                                    .fill(status == "online" ? Color.green : Color.gray)
+                                    .frame(width: 8, height: 8)
+                                    .overlay(
+                                        Circle().stroke(Color.black.opacity(0.5), lineWidth: 1)
+                                    )
+                            }
+                            
                             if let code = channel.code?.lowercased(), let url = URL(string: "https://flagcdn.com/w40/\(code).png") {
-                                AsyncImage(url: url) { ph in ph.resizable() } placeholder: { Color.gray }
+                                AsyncImage(url: url) { ph in ph.resizable() } placeholder: { Color.clear } // Placeholder clear to avoid gray box overlap
                                     .frame(width: 20, height: 15)
                             }
+                            
                             Text(channel.channel_name ?? channel.name)
                                 .font(.subheadline)
                                 .foregroundColor(.white)
@@ -169,6 +180,16 @@ struct ChannelRow: View {
     
     var body: some View {
         HStack(spacing: 12) {
+            // Status Badge (Left of Logo)
+            if let status = channel.status?.lowercased() {
+                Circle()
+                    .fill(status == "online" ? Color.green : Color.gray)
+                    .frame(width: 8, height: 8)
+                    .overlay(
+                        Circle().stroke(Color.black.opacity(0.5), lineWidth: 1)
+                    )
+            }
+            
             AsyncImage(url: URL(string: channel.image ?? "")) { image in
                 image.resizable().aspectRatio(contentMode: .fit)
             } placeholder: {

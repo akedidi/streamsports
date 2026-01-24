@@ -22,8 +22,10 @@ struct ContentView: View {
             .frame(maxHeight: .infinity)
             .padding(.bottom, 60) // Space for TabBar
             
-            // Custom Tab Bar (Placed BEFORE Player overlay so player covers it)
-            if !PlayerManager.shared.isMiniPlayer {
+            // Custom Tab Bar (Placed BEFORE Player overlay)
+            // Show TabBar if: 1. Not Playing, OR 2. Is Mini Player
+            // Hide TabBar ONLY if: Playing AND Full Screen (Not Mini)
+            if !PlayerManager.shared.isPlaying || PlayerManager.shared.isMiniPlayer {
                 VStack {
                     Spacer()
                     CustomTabBar(selectedTab: $selectedTab)
@@ -31,7 +33,7 @@ struct ContentView: View {
                 .edgesIgnoringSafeArea(.bottom)
             }
             
-            // Global Player (Top of ZStack to cover everything in full screen)
+            // Global Player (Top of ZStack)
             CustomPlayerOverlay()
         }
         .background(bgDark.edgesIgnoringSafeArea(.all))
@@ -127,34 +129,48 @@ struct ChannelsView: View {
             
             // Country Filter (Menu / ComboBox)
             HStack {
-                Text("Country:")
-                    .foregroundColor(.gray)
-                    .font(.caption)
+                Text("COUNTRY")
+                    .font(.subheadline)
+                    .fontWeight(.heavy)
+                    .foregroundColor(.white)
+                
+                Spacer()
                 
                 Menu {
-                    Button("All", action: { viewModel.selectedCountry = nil })
-                    ForEach(viewModel.availableCountries, id: \.self) { country in
-                        Button(country, action: { viewModel.selectedCountry = country })
+                    Button("All Countries", action: { viewModel.selectedCountry = nil })
+                    ForEach(viewModel.availableCountries, id: \.self) { countryCode in
+                        Button(action: { viewModel.selectedCountry = countryCode }) {
+                            HStack {
+                                Text(countryName(from: countryCode))
+                                if viewModel.selectedCountry == countryCode {
+                                    Image(systemName: "checkmark")
+                                }
+                            }
+                        }
                     }
                 } label: {
                     HStack {
-                        Text(viewModel.selectedCountry ?? "All")
+                        Text(viewModel.selectedCountry != nil ? countryName(from: viewModel.selectedCountry!) : "All")
                             .foregroundColor(.white)
                             .font(.system(size: 14, weight: .medium))
+                            .lineLimit(1)
                         Image(systemName: "chevron.down")
                             .font(.caption)
                             .foregroundColor(.gray)
                     }
-                    .padding(.horizontal, 12)
+                    .padding(.horizontal, 16)
                     .padding(.vertical, 8)
                     .background(Color(UIColor.tertiarySystemFill))
-                    .cornerRadius(8)
+                    .cornerRadius(20)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 20)
+                            .stroke(Color.white.opacity(0.1), lineWidth: 1)
+                    )
                 }
-                
-                Spacer()
             }
             .padding(.horizontal)
-            .padding(.bottom, 8)
+            .padding(.top, 10)     // Added spacing from Search Bar
+            .padding(.bottom, 15)
             
             if viewModel.isLoading {
                 Spacer()
@@ -172,6 +188,10 @@ struct ChannelsView: View {
                 .listStyle(PlainListStyle())
             }
         }
+    }
+    func countryName(from code: String) -> String {
+        let identifier = Locale(identifier: "en_US")
+        return identifier.localizedString(forRegionCode: code) ?? code.uppercased()
     }
 }
 

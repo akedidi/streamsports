@@ -19,6 +19,10 @@ struct SportsChannel: Codable, Identifiable {
     let countryIMG: String?
     let gameID: String?
     
+    func with(status: String) -> SportsChannel {
+        return SportsChannel(name: name, channel_name: channel_name, code: code, url: url, image: image, tournament: tournament, home_team: home_team, away_team: away_team, match_info: match_info, sport_category: sport_category, status: status, start: start, time: time, country: country, countryIMG: countryIMG, gameID: gameID)
+    }
+    
     enum CodingKeys: String, CodingKey {
         case name, channel_name, code, url, image, tournament, home_team, away_team, match_info, sport_category, status, start, time, country, countryIMG, gameID
     }

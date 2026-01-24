@@ -85,8 +85,10 @@ class PlayerManager: ObservableObject {
     func togglePlayPause() {
         if player?.timeControlStatus == .playing {
             player?.pause()
+            isPlaying = false
         } else {
             player?.play()
+            isPlaying = true
         }
     }
     

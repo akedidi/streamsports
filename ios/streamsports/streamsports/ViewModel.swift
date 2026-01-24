@@ -85,15 +85,37 @@ class AppViewModel: ObservableObject {
             ($0.away_team ?? "").localizedCaseInsensitiveContains(searchText)
         }
         
-        // 2. Grouping
+        // 2. Grouping & Hydration
         var groups: [String: GroupedEvent] = [:]
+        
+        // Create a lookup map for global channels for faster status access
+        // Map Name -> Status, Code -> Status
+        var statusMap: [String: String] = [:]
+        for c in self.channels {
+            if let s = c.status {
+                statusMap[c.name] = s
+                if let code = c.code { statusMap[code] = s }
+            }
+        }
+        
         for item in filtered {
             let key = item.gameID ?? item.match_info ?? item.name
+            
+            // HYDRATION: Check if this item (channel) has status. If not, lookup.
+            var channelItem = item
+            if channelItem.status == nil {
+                // Try looking up by code or name
+                if let code = channelItem.code, let s = statusMap[code] {
+                    channelItem = channelItem.with(status: s)
+                } else if let s = statusMap[channelItem.name] {
+                    channelItem = channelItem.with(status: s)
+                }
+            }
             
             if groups[key] == nil {
                 groups[key] = GroupedEvent(id: key, displayItem: item, channels: [])
             }
-            groups[key]?.channels.append(item)
+            groups[key]?.channels.append(channelItem)
         }
         
         let allGroups = Array(groups.values)

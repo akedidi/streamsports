@@ -1,8 +1,47 @@
 import SwiftUI
 import AVKit
 
+// Custom AVPlayerLayer wrapper to avoid native controls
+struct SimplePlayerView: UIViewRepresentable {
+    let player: AVPlayer
+    
+    func makeUIView(context: Context) -> UIView {
+        let view = PlayerUIView(player: player)
+        return view
+    }
+    
+    func updateUIView(_ uiView: UIView, context: Context) {
+        // No update needed for player reference usually, assuming consistent instance
+    }
+}
+
+class PlayerUIView: UIView {
+    private let playerLayer = AVPlayerLayer()
+    
+    init(player: AVPlayer) {
+        super.init(frame: .zero)
+        playerLayer.player = player
+        playerLayer.videoGravity = .resizeAspect  // Allow aspect fit
+        layer.addSublayer(playerLayer)
+        backgroundColor = .black
+    }
+    
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+    
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        playerLayer.frame = bounds
+    }
+}
+
 struct CustomPlayerOverlay: View {
     @ObservedObject var manager = PlayerManager.shared
+// ... (rest of the struct start)
+// we need to be careful with the target replacement content to match the file structure.
+// I'll put the new structs BEFORE CustomPlayerOverlay
+
     @State private var dragOffset: CGFloat = 0
     
     // Constants
@@ -45,10 +84,18 @@ struct CustomPlayerOverlay: View {
                                 Color.black
                                 
                                 if let player = manager.player {
-                                    VideoPlayer(player: player)
+                                    // Use Custom SimplePlayerView to avoid native controls showing in mini mode
+                                    SimplePlayerView(player: player)
                                         .onTapGesture {
-                                            withAnimation {
-                                                manager.showControls.toggle() 
+                                            if !manager.isMiniPlayer {
+                                                withAnimation {
+                                                    manager.showControls.toggle() 
+                                                }
+                                            } else {
+                                                // Pass tap or maximize
+                                                withAnimation(.spring()) {
+                                                    manager.isMiniPlayer = false
+                                                }
                                             }
                                         }
                                 } else {
@@ -65,7 +112,6 @@ struct CustomPlayerOverlay: View {
                                             // AirPlay Button
                                             Button(action: {
                                                 // Trigger route picker safely? 
-                                                // SwiftUI doesn't have a direct button, usually needs UIViewRepresentable
                                             }) {
                                                  Image(systemName: "airplayvideo")
                                                     .font(.system(size: 20))
@@ -81,72 +127,133 @@ struct CustomPlayerOverlay: View {
                                 }
                             }
                             .frame(height: manager.isMiniPlayer ? miniPlayerHeight : geometry.size.width * 9/16)
-                            .frame(maxWidth: manager.isMiniPlayer ? 100 : .infinity, alignment: .leading)
+                            .frame(maxWidth: manager.isMiniPlayer ? 107 : .infinity, alignment: manager.isMiniPlayer ? .trailing : .leading) // 106.6 width
+                            .padding(.trailing, manager.isMiniPlayer ? 90 : 0) // 80 (Controls) + 10 (Padding)
+                            .allowsHitTesting(true) // Ensure taps work
                             
-                            // 3. Info & Controls (Full Screen Only)
+                            // 3. Info & Controls (Full Screen Overlay)
                             if !manager.isMiniPlayer {
-                                VStack(alignment: .leading, spacing: 24) {
-                                    // Match Details (Always visible? User said "se cacher en meme temps". 
-                                    // Usually metadata stays, but user said "le titre de la chaine... se cacher en meme temps que les autres controleurs". 
-                                    // But the Event Details are below. Let's assume standard behavior: details stay or toggle?
-                                    // User said "les autres bouton... se cachent". 
-                                    // Let's toggle everything for cleanliness implicitly requested.
+                                ZStack {
+                                    // Tap to toggle controls (Invisible layer)
+                                    Color.black.opacity(0.001)
+                                        .onTapGesture {
+                                            withAnimation {
+                                                manager.showControls.toggle()
+                                            }
+                                        }
                                     
                                     if manager.showControls {
-                                        // Title (Teams)
-                                        VStack(alignment: .leading, spacing: 6) {
-                                            Text(getRunTitle(channel))
-                                                .font(.title3)
-                                                .fontWeight(.bold)
-                                                .foregroundColor(.white)
-                                                .lineLimit(2)
-                                            
-                                            HStack(spacing: 6) {
-                                                if let code = channel.code?.lowercased(), let url = URL(string: "https://flagcdn.com/w40/\(code).png") {
-                                                    AsyncImage(url: url) { ph in ph.resizable() } placeholder: { Color.clear }
-                                                        .frame(width: 18, height: 13.5)
+                                        VStack(alignment: .leading) {
+                                            // TOP BAR
+                                            HStack(alignment: .top) {
+                                                // Channel Title & Flag
+                                                HStack(spacing: 8) {
+                                                    // Logo/Flag
+                                                    if let img = channel.image, let url = URL(string: img) {
+                                                        AsyncImage(url: url) { ph in
+                                                            if let image = ph.image {
+                                                                image.resizable().aspectRatio(contentMode: .fit)
+                                                            } else { Color.clear }
+                                                        }
+                                                        .frame(width: 30, height: 22)
+                                                    } else if let img = channel.countryIMG, let url = URL(string: img) {
+                                                        AsyncImage(url: url) { ph in
+                                                            if let image = ph.image {
+                                                                image.resizable().aspectRatio(contentMode: .fit)
+                                                            } else { Color.clear }
+                                                        }
+                                                        .frame(width: 30, height: 22)
+                                                    } else if let code = channel.code?.lowercased(), let url = URL(string: "https://flagcdn.com/w40/\(code).png") {
+                                                        AsyncImage(url: url) { ph in
+                                                            if let image = ph.image {
+                                                                image.resizable().aspectRatio(contentMode: .fit)
+                                                            } else { Color.clear }
+                                                        }
+                                                        .frame(width: 30, height: 22)
+                                                    }
+                                                    
+                                                    VStack(alignment: .leading, spacing: 2) {
+                                                        Text(getRunTitle(channel))
+                                                            .font(.headline)
+                                                            .fontWeight(.bold)
+                                                            .foregroundColor(.white)
+                                                            .lineLimit(2)
+                                                        
+                                                        Text(channel.tournament ?? channel.sport_category ?? "")
+                                                            .font(.subheadline)
+                                                            .foregroundColor(Color.gray)
+                                                    }
                                                 }
-                                                Text(channel.tournament ?? channel.sport_category ?? "")
-                                                    .font(.subheadline)
-                                                    .foregroundColor(Color.blue.opacity(0.9))
+                                                .padding(10)
+                                                .background(Color.black.opacity(0.5))
+                                                .cornerRadius(8)
+                                                
+                                                Spacer()
+                                                
+                                                // AirPlay (Top Right, AnisFlix Style)
+                                                Button(action: {
+                                                    // AirPlay Logic (Route Picker View needed)
+                                                }) {
+                                                     Image(systemName: "airplayvideo")
+                                                        .font(.system(size: 22))
+                                                        .foregroundColor(.white)
+                                                        .padding(10)
+                                                        .background(Circle().fill(Color.black.opacity(0.5)))
+                                                }
                                             }
-                                        }
-                                        .padding(.horizontal)
-                                        .padding(.top, 10)
-                                        .transition(.opacity)
-                                        
-                                        Spacer()
-                                        
-                                        // Bottom Controls Row (Right Aligned: CC -> PiP -> Full)
-                                        HStack(spacing: 20) {
+                                            .padding(.top, 40) // Status bar spacing
+                                            .padding(.horizontal)
+                                            
                                             Spacer()
                                             
-                                            // Chromecast
-                                            ChromecastButton()
-                                                .frame(width: 24, height: 24)
-                                                .foregroundColor(.white)
-                                            
-                                            // PiP
-                                            Button(action: {
-                                                // PiP logic is native in AVPlayerViewController usually.
-                                            }) {
-                                                Image(systemName: "pip.enter")
-                                                    .font(.system(size: 20))
-                                                    .foregroundColor(.white)
+                                            // BOTTOM BAR
+                                            HStack(spacing: 20) {
+                                                // Live Indicator or Time
+                                                HStack(spacing: 6) {
+                                                    Circle().fill(Color.red).frame(width: 8, height: 8)
+                                                    Text("LIVE")
+                                                        .font(.caption)
+                                                        .fontWeight(.bold)
+                                                        .foregroundColor(.white)
+                                                }
+                                                .padding(6)
+                                                .background(Color.black.opacity(0.5))
+                                                .cornerRadius(4)
+                                                
+                                                Spacer()
+                                                
+                                                // Chromecast
+                                                ChromecastButton()
+                                                    .frame(width: 30, height: 30)
+                                                
+                                                // PiP
+                                                Button(action: {
+                                                    // PiP Toggle
+                                                }) {
+                                                    Image(systemName: "pip.enter")
+                                                        .font(.system(size: 22))
+                                                        .foregroundColor(.white)
+                                                        .padding(8)
+                                                }
+                                                
+                                                // Fullscreen / Minimize
+                                                Button(action: {
+                                                    withAnimation(.spring()) {
+                                                        manager.isMiniPlayer = true
+                                                    }
+                                                }) {
+                                                    Image(systemName: "arrow.down.right.and.arrow.up.left") // Use shrink icon for minimize
+                                                        .font(.system(size: 20))
+                                                        .foregroundColor(.white)
+                                                        .padding(8)
+                                                }
                                             }
-                                            
-                                            // Fullscreen
-                                            Button(action: {
-                                                 // Fullscreen toggle logic
-                                            }) {
-                                                Image(systemName: "arrow.up.left.and.arrow.down.right")
-                                                    .font(.system(size: 20))
-                                                    .foregroundColor(.white)
-                                            }
+                                            .padding()
+                                            .background(
+                                                LinearGradient(colors: [.clear, .black.opacity(0.8)], startPoint: .top, endPoint: .bottom)
+                                            )
                                         }
-                                        .padding(.horizontal, 24) // bit more padding from edge
-                                        .padding(.bottom, 40)
-                                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                                        .transition(.opacity)
                                     }
                                 }
                             }
@@ -155,34 +262,26 @@ struct CustomPlayerOverlay: View {
                         // 4. Mini Player Info Overlay
                         if manager.isMiniPlayer {
                             HStack(spacing: 8) {
-                                Spacer().frame(width: 100)
-                                
-                                // Logo / Flag
+                                // Logo / Flag (LEFT SIDE)
                                 Group {
                                     if let img = channel.image, let url = URL(string: img) {
-                                         AsyncImage(url: url) { phase in
-                                             if let image = phase.image {
-                                                 image.resizable().aspectRatio(contentMode: .fit)
-                                             } else {
-                                                 Color.clear
-                                             }
-                                         }
+                                        AsyncImage(url: url) { phase in
+                                            if let image = phase.image {
+                                                image.resizable().aspectRatio(contentMode: .fit)
+                                            } else { Color.clear }
+                                        }
                                     } else if let img = channel.countryIMG, let url = URL(string: img) {
-                                         AsyncImage(url: url) { phase in
-                                             if let image = phase.image {
-                                                 image.resizable().aspectRatio(contentMode: .fit)
-                                             } else {
-                                                  Color.clear
-                                             }
-                                         }
+                                        AsyncImage(url: url) { phase in
+                                            if let image = phase.image {
+                                                image.resizable().aspectRatio(contentMode: .fit)
+                                            } else { Color.clear }
+                                        }
                                     } else if let code = channel.code?.lowercased(), let url = URL(string: "https://flagcdn.com/w40/\(code).png") {
-                                         AsyncImage(url: url) { phase in
-                                             if let image = phase.image {
-                                                 image.resizable().aspectRatio(contentMode: .fit)
-                                             } else {
-                                                  Color.clear
-                                             }
-                                         }
+                                        AsyncImage(url: url) { phase in
+                                            if let image = phase.image {
+                                                image.resizable().aspectRatio(contentMode: .fit)
+                                            } else { Color.clear }
+                                        }
                                     } else {
                                         Image(systemName: "tv")
                                             .foregroundColor(.gray)
@@ -190,6 +289,7 @@ struct CustomPlayerOverlay: View {
                                 }
                                 .frame(width: 24, height: 24)
                                 
+                                // Title
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(channel.name)
                                         .font(.subheadline).bold()
@@ -200,25 +300,35 @@ struct CustomPlayerOverlay: View {
                                         .foregroundColor(.gray)
                                         .lineLimit(1)
                                 }
-                                Spacer()
                                 
-                                Button(action: { manager.togglePlayPause() }) {
-                                    Image(systemName: manager.player?.timeControlStatus == .playing ? "pause.fill" : "play.fill")
-                                        .font(.title3)
-                                        .foregroundColor(.white)
-                                        .padding()
-                                }
+                                Spacer() // Push everything else to right
                                 
-                                Button(action: { manager.close() }) {
-                                    Image(systemName: "xmark")
-                                        .font(.body)
-                                        .foregroundColor(.white)
-                                        .padding()
+                                // SPACE FOR VIDEO (100px)
+                                Spacer().frame(width: 100)
+                                
+                                // Controls (RIGHT SIDE)
+                                HStack(spacing: 0) {
+                                    Button(action: { manager.togglePlayPause() }) {
+                                        // FIX: Use manager.isPlaying as source of truth
+                                        Image(systemName: manager.isPlaying ? "pause.fill" : "play.fill")
+                                            .font(.title3)
+                                            .foregroundColor(.white)
+                                            .frame(width: 40, height: 40)
+                                    }
+                                    
+                                    Button(action: { manager.close() }) {
+                                        Image(systemName: "xmark")
+                                            .font(.body)
+                                            .foregroundColor(.white)
+                                            .frame(width: 40, height: 40)
+                                    }
                                 }
                             }
                             .frame(height: miniPlayerHeight)
-                            .background(Color(red: 0.1, green: 0.1, blue: 0.1))
+                            .padding(.horizontal, 10)
+                            .background(Color.clear)
                             .overlay(Divider().background(Color.white.opacity(0.1)), alignment: .top)
+                            .contentShape(Rectangle()) // Make entire area tappable (including Spacers)
                             .onTapGesture {
                                 withAnimation(.spring()) {
                                     manager.isMiniPlayer = false
@@ -227,12 +337,16 @@ struct CustomPlayerOverlay: View {
                         }
                     }
                     .frame(height: manager.isMiniPlayer ? miniPlayerHeight : geometry.size.height)
+                    .background(
+                        // Apply background ONLY when mini player, to the whole container (behind video and text)
+                        manager.isMiniPlayer ? Color(red: 0.1, green: 0.1, blue: 0.1) : Color.clear
+                    )
                     // Offset: When mini, move up (negative y) to sit above TabBar.
                     // TabBar is approx 90pt (content + safe area). Offset -85 ensures it clears top of TabBar.
-                    .offset(y: manager.isMiniPlayer ? -85 : max(0, dragOffset))
+                    .offset(y: manager.isMiniPlayer ? -85 : 0)
                     .edgesIgnoringSafeArea(.all) 
-                    // Drag Gesture to Minimize
-                    .gesture(
+                    // Drag Gesture to Minimize (Simultaneous to allow gesture over VideoPlayer)
+                    .simultaneousGesture(
                         DragGesture()
                             .onChanged { value in
                                 // Only allow dragging down
@@ -258,6 +372,7 @@ struct CustomPlayerOverlay: View {
                                 }
                             }
                     )
+                    .offset(y: manager.isMiniPlayer ? 0 : max(0, dragOffset))
                 }
             }
             .edgesIgnoringSafeArea(.bottom) // Explicitly ignore bottom safe area for the wrapper VStack
