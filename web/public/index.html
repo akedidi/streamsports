@@ -9,7 +9,9 @@
     <!-- Hls.js -->
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <!-- Google Cast SDK -->
-    <script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1"></script>
+    <script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1"
+        onload="console.log('DEBUG: Cast SDK script loaded')"
+        onerror="console.error('DEBUG: Cast SDK script FAILED to load')"></script>
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -817,7 +819,10 @@
     </div>
 
     <script>
-        console.log('DEBUG: StreamSports Custom Script Loaded');
+        console.log('DEBUG: StreamSports Custom Script Loaded v2');
+        window.onerror = function (msg, url, line, col, error) {
+            console.error('DEBUG: GLOBAL JS ERROR:', msg, 'at', line + ':' + col, error);
+        };
         // --- State Management ---
         let state = {
             channels: [],
@@ -1273,6 +1278,7 @@
 
         // --- Player Logic ---
         async function playStream(item, el) {
+            console.log('DEBUG: playStream called for', item.name || 'Unknown');
             currentStreamUrl = null;
             // Highlight
             document.querySelectorAll('.channel-item, .event-card').forEach(i => i.classList.remove('playing'));
@@ -1329,6 +1335,7 @@
         let controlsTimeout = null;
 
         function setupCustomControls() {
+            console.log('DEBUG: setupCustomControls called');
             if (controlsSetup) return;
             controlsSetup = true;
 
@@ -1671,6 +1678,7 @@
             }
         }
 
+        console.log('DEBUG: Script parsing finished, calling init()');
         init();
         var currentTab = 'channels'; // Global needed for stats
     </script>
