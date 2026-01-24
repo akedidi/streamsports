@@ -929,8 +929,8 @@
                 });
             });
 
-            // Convert to array and separate live/upcoming
-            const uniqueEvents = Array.from(groupedEvents.values());
+            // Convert to array, filter out events without channels, and separate live/upcoming
+            const uniqueEvents = Array.from(groupedEvents.values()).filter(g => g.channels.length > 0);
 
             const liveEvents = uniqueEvents.filter(g => {
                 const item = g.event;

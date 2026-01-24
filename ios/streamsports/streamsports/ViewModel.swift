@@ -171,7 +171,8 @@ class AppViewModel: ObservableObject {
             groups[key]?.channels.append(channelItem)
         }
         
-        let allGroups = Array(groups.values)
+        // Filter out events without any channels
+        let allGroups = Array(groups.values).filter { !$0.channels.isEmpty }
         
         // 4. Separation (Live vs Upcoming) & Sorting
         // Live
