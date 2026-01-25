@@ -1515,10 +1515,15 @@
             // --- Player Logic ---
             async function playStream(item, el) {
                 console.log('DEBUG: playStream called for', item.name || 'Unknown');
+
+                // Show Loader
+                const loader = document.querySelector('.player-loader');
+                if (loader) loader.style.display = 'flex';
+
                 currentStreamUrl = null;
                 // Highlight
                 document.querySelectorAll('.channel-item, .event-card').forEach(i => i.classList.remove('playing'));
-                el.classList.add('playing');
+                if (el) el.classList.add('playing');
 
                 els.placeholder.style.display = 'none';
                 els.video.style.display = 'block';
