@@ -1,65 +1,5 @@
 import SwiftUI
 
-struct CustomSearchBar: View {
-    @Binding var text: String
-    
-    var body: some View {
-        HStack {
-            Image(systemName: "magnifyingglass")
-                .foregroundColor(.gray)
-            TextField("Search events, teams...", text: $text)
-                .foregroundColor(.white)
-            if !text.isEmpty {
-                Button(action: { text = "" }) {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundColor(.gray)
-                }
-            }
-        }
-        .padding(10)
-        .background(Color(UIColor.secondarySystemBackground))
-        .cornerRadius(10)
-        .padding(.horizontal)
-    }
-}
-
-// Custom Tab Bar to replace "moche" standard one
-struct CustomTabBar: View {
-    @Binding var selectedTab: Int
-    
-    var body: some View {
-        HStack {
-            Spacer()
-            // Events Tab
-            Button(action: { selectedTab = 0 }) {
-                VStack(spacing: 4) {
-                    Image(systemName: "sportscourt")
-                        .font(.system(size: 20, weight: selectedTab == 0 ? .bold : .regular))
-                    Text("Events")
-                        .font(.caption2)
-                }
-                .foregroundColor(selectedTab == 0 ? .blue : .gray)
-            }
-            Spacer()
-            Spacer()
-            // Channels Tab
-            Button(action: { selectedTab = 1 }) {
-                VStack(spacing: 4) {
-                    Image(systemName: "tv")
-                        .font(.system(size: 20, weight: selectedTab == 1 ? .bold : .regular))
-                    Text("Channels")
-                        .font(.caption2)
-                }
-                .foregroundColor(selectedTab == 1 ? .blue : .gray)
-            }
-            Spacer()
-        }
-        .padding(.top, 10)
-        .padding(.bottom, 30) // Safe area
-        .background(Color(red: 0.1, green: 0.1, blue: 0.1).edgesIgnoringSafeArea(.bottom))
-    }
-}
-
 struct EventRow: View {
     let group: GroupedEvent
     let expandAction: () -> Void
@@ -122,6 +62,7 @@ struct EventRow: View {
                     }
                 }
                 .padding(.vertical, 8)
+                .contentShape(Rectangle()) // Make entire row tappable including Spacer
             }
             .buttonStyle(PlainButtonStyle())
             
@@ -132,18 +73,17 @@ struct EventRow: View {
                         PlayerManager.shared.play(channel: channel)
                     }) {
                         HStack {
-                            // Status Badge (Left of Flag)
-                            if let status = channel.status?.lowercased() {
-                                Circle()
-                                    .fill(status == "online" ? Color.green : Color.gray)
-                                    .frame(width: 8, height: 8)
-                                    .overlay(
-                                        Circle().stroke(Color.black.opacity(0.5), lineWidth: 1)
-                                    )
-                            }
+                            // Status Badge (Left of Flag) - using lookup
+                            let status = getChannelStatus(channel)
+                            Circle()
+                                .fill(status == "online" ? Color.green : Color.gray)
+                                .frame(width: 8, height: 8)
+                                .overlay(
+                                    Circle().stroke(Color.black.opacity(0.5), lineWidth: 1)
+                                )
                             
                             if let code = channel.code?.lowercased(), let url = URL(string: "https://flagcdn.com/w40/\(code).png") {
-                                AsyncImage(url: url) { ph in ph.resizable() } placeholder: { Color.clear } // Placeholder clear to avoid gray box overlap
+                                AsyncImage(url: url) { ph in ph.resizable() } placeholder: { Color.clear }
                                     .frame(width: 20, height: 15)
                             }
                             
@@ -179,6 +119,23 @@ struct EventRow: View {
         }
     }
     
+    // Get status by looking up channel name in the channels list
+    func getChannelStatus(_ item: SportsChannel) -> String {
+        let channelName = (item.channel_name ?? item.name).lowercased()
+        
+        // Lookup in viewModel.channels by name
+        if let matched = viewModel.channels.first(where: { 
+            $0.name.lowercased() == channelName || 
+            channelName.contains($0.name.lowercased()) ||
+            $0.name.lowercased().contains(channelName)
+        }) {
+            return matched.status?.lowercased() ?? "offline"
+        }
+        
+        // Fallback to item's own status
+        return item.status?.lowercased() ?? "offline"
+    }
+    
     func getRunTitle(_ item: SportsChannel) -> String {
         // Prefer "Team A vs Team B" if available, but show single name if identical
         if let home = item.home_team, let away = item.away_team, !home.isEmpty, !away.isEmpty {
@@ -198,54 +155,5 @@ struct EventRow: View {
         // Fallback to name parsing
         guard let idx = item.name.range(of: "-") else { return item.name }
         return String(item.name[..<idx.lowerBound]).trimmingCharacters(in: .whitespaces)
-    }
-}
-
-// Simple Channel Row (for the other tab)
-struct ChannelRow: View {
-    let channel: SportsChannel
-    @EnvironmentObject var viewModel: AppViewModel
-    
-    var body: some View {
-        HStack(spacing: 12) {
-            // Status Badge (Left of Logo)
-            if let status = channel.status?.lowercased() {
-                Circle()
-                    .fill(status == "online" ? Color.green : Color.gray)
-                    .frame(width: 8, height: 8)
-                    .overlay(
-                        Circle().stroke(Color.black.opacity(0.5), lineWidth: 1)
-                    )
-            }
-            
-            AsyncImage(url: URL(string: channel.image ?? "")) { image in
-                image.resizable().aspectRatio(contentMode: .fit)
-            } placeholder: {
-                Color.gray.opacity(0.3)
-            }
-            .frame(width: 44, height: 44)
-            .cornerRadius(6)
-            
-            VStack(alignment: .leading, spacing: 2) {
-                Text(channel.name)
-                    .font(.body)
-                    .foregroundColor(.white)
-                
-                if let program = viewModel.getCurrentProgram(for: channel.name) {
-                    HStack(spacing: 4) {
-                        Text(viewModel.formatTime(program.start))
-                            .font(.caption2)
-                            .foregroundColor(.blue)
-                        Text(program.title)
-                            .font(.caption2)
-                            .foregroundColor(.gray)
-                            .lineLimit(1)
-                    }
-                }
-            }
-            
-            Spacer()
-        }
-        .padding(.vertical, 4)
     }
 }

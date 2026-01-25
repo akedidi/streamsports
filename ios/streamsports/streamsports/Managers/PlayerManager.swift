@@ -3,6 +3,12 @@ import Combine
 import SwiftUI
 import AVKit
 import MediaPlayer
+import CoreMedia
+
+enum PlaybackSource {
+    case event
+    case channelList
+}
 
 class PlayerManager: ObservableObject {
     static let shared = PlayerManager()
@@ -12,6 +18,9 @@ class PlayerManager: ObservableObject {
     @Published var isMiniPlayer: Bool = false
     @Published var offset: CGFloat = 0
     @Published var showControls: Bool = true
+    
+    // Track where playback started from
+    var source: PlaybackSource = .event
     
     var player: AVPlayer?
     
@@ -23,7 +32,7 @@ class PlayerManager: ObservableObject {
         setupAudioSession()
     }
     
-    func play(channel: SportsChannel) {
+    func play(channel: SportsChannel, source: PlaybackSource = .event) {
         // If already playing this channel, maximize
         if let current = currentChannel, current.id == channel.id {
             withAnimation {
@@ -39,6 +48,7 @@ class PlayerManager: ObservableObject {
         self.isPlaying = false
         
         self.currentChannel = channel
+        self.source = source // Update source
         self.isPlaying = true
         self.isMiniPlayer = false
         self.offset = 0
@@ -90,6 +100,11 @@ class PlayerManager: ObservableObject {
             player?.play()
             isPlaying = true
         }
+    }
+    
+    func seek(to seconds: Double) {
+        let targetTime = CMTime(seconds: seconds, preferredTimescale: 600)
+        player?.seek(to: targetTime)
     }
     
     // MARK: - Background Audio & Lock Screen

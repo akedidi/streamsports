@@ -64,6 +64,9 @@ class AppViewModel: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     
     init() {
+        // Start Chromecast Discovery
+        _ = ChromecastManager.shared
+        
         // Debounce search
         $searchText
             .debounce(for: .milliseconds(300), scheduler: RunLoop.main)
@@ -84,8 +87,8 @@ class AppViewModel: ObservableObject {
             .store(in: &cancellables)
     }
     
-    func loadData() {
-        self.isLoading = true
+    func loadData(silent: Bool = false, completion: (() -> Void)? = nil) {
+        if !silent { self.isLoading = true }
         let group = DispatchGroup()
         
         group.enter()
@@ -111,7 +114,17 @@ class AppViewModel: ObservableObject {
         group.notify(queue: .main) {
             // Hydrate events with channel status AFTER both are loaded
             self.filterAndGroupEvents()
-            self.isLoading = false
+            if !silent { self.isLoading = false }
+            completion?()
+        }
+    }
+    
+    // Async wrapper for Pull to Refresh (Silent load to keep List visible)
+    func reload() async {
+        return await withCheckedContinuation { continuation in
+            loadData(silent: true) {
+                continuation.resume()
+            }
         }
     }
     

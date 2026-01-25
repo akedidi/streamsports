@@ -18,7 +18,7 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		A28DDB0C2F23D3950006A766 /* Exceptions for "streamsports" folder in "streamsports" target */ = {
+		A28DDC3A2F261EF10006A766 /* Exceptions for "streamsports" folder in "streamsports" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
@@ -31,7 +31,7 @@
 		A2BADE442F23A742009C44F4 /* streamsports */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				A28DDB0C2F23D3950006A766 /* Exceptions for "streamsports" folder in "streamsports" target */,
+				A28DDC3A2F261EF10006A766 /* Exceptions for "streamsports" folder in "streamsports" target */,
 			);
 			path = streamsports;
 			sourceTree = "<group>";
@@ -82,7 +82,6 @@
 				6558662A351B4CCD213AE403 /* Pods-streamsports.debug.xcconfig */,
 				327EC9F1598DFF4B66AACF56 /* Pods-streamsports.release.xcconfig */,
 			);
-			name = Pods;
 			path = Pods;
 			sourceTree = "<group>";
 		};
@@ -186,9 +185,13 @@
 			inputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-streamsports/Pods-streamsports-resources-${CONFIGURATION}-input-files.xcfilelist",
 			);
+			inputPaths = (
+			);
 			name = "[CP] Copy Pods Resources";
 			outputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-streamsports/Pods-streamsports-resources-${CONFIGURATION}-output-files.xcfilelist",
+			);
+			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
@@ -339,11 +342,12 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = streamsports/Info.plist;
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Discover Cast-enabled devices on your local network.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Discover nearby Cast devices via ultrasonic tokens.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -374,11 +378,12 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = streamsports/Info.plist;
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Discover Cast-enabled devices on your local network.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Discover nearby Cast devices via ultrasonic tokens.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
