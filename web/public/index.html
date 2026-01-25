@@ -1888,13 +1888,18 @@
 
             // --- Server List (Sibling Channels) ---
             function renderServerList(currentItem) {
+                console.log('DEBUG: renderServerList called with:', currentItem);
                 const container = document.getElementById('serverListContainer');
                 const list = document.getElementById('serverList');
 
-                if (!container || !list) return;
+                if (!container || !list) {
+                    console.log('DEBUG: serverList container not found');
+                    return;
+                }
 
                 // Only show for events with gameID
                 if (!currentItem.gameID) {
+                    console.log('DEBUG: No gameID in currentItem, hiding server list');
                     container.style.display = 'none';
                     return;
                 }
