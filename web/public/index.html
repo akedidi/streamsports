@@ -7,8 +7,7 @@
     <meta name="referrer" content="no-referrer">
     <title>StreamSports - Premium Player</title>
     <!-- Favicon -->
-    <link rel="icon" type="image/svg+xml"
-        href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236366f1' stroke-width='2'%3E%3Crect x='2' y='3' width='20' height='14' rx='2' ry='2'/%3E%3Cpolygon points='10 8 16 11 10 14 10 8' fill='%236366f1' stroke='none'/%3E%3Cline x1='8' y1='21' x2='16' y2='21'/%3E%3Cline x1='12' y1='17' x2='12' y2='21'/%3E%3C/svg%3E">
+    <link rel="icon" type="image/png" href="icon.png">
     <!-- Hls.js -->
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <!-- Google Cast SDK -->
@@ -453,6 +452,9 @@
         }
 
         video {
+            position: absolute;
+            top: 0;
+            left: 0;
             width: 100%;
             height: 100%;
             max-height: 100vh;
@@ -700,14 +702,8 @@
     <!-- Header -->
     <header>
         <div class="brand" onclick="goHome()">
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                stroke-linecap="round" stroke-linejoin="round">
-                <!-- TV with Play Button (Sports Streaming) -->
-                <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
-                <polygon points="10 8 16 11 10 14 10 8" fill="currentColor" stroke="none"></polygon>
-                <line x1="8" y1="21" x2="16" y2="21"></line>
-                <line x1="12" y1="17" x2="12" y2="21"></line>
-            </svg>
+            <img src="icon.png" alt="Logo"
+                style="width: 32px; height: 32px; border-radius: 8px; box-shadow: 0 0 10px rgba(99, 102, 241, 0.3);">
             <span>StreamSports</span>
         </div>
 

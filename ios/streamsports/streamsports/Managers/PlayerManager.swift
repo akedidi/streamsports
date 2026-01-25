@@ -18,11 +18,13 @@ class PlayerManager: ObservableObject {
     @Published var isMiniPlayer: Bool = false
     @Published var offset: CGFloat = 0
     @Published var showControls: Bool = true
+    @Published var isBuffering: Bool = true // Default to true when starting
     
     // Track where playback started from
     var source: PlaybackSource = .event
     
     var player: AVPlayer?
+    private var timeControlStatusObserver: NSKeyValueObservation?
     
     // Mini Player Config
     let miniHeight: CGFloat = 60
@@ -71,14 +73,24 @@ class PlayerManager: ObservableObject {
                 
                 // Animate Presentation
                 withAnimation(.spring()) {
-                    self.currentChannel = channel
+                self.currentChannel = channel
                     self.isPlaying = true
                     self.isMiniPlayer = false
+                    self.isBuffering = true // Start buffering
                     self.offset = 0
                 }
                 
                 let item = AVPlayerItem(url: url)
                 self.player = AVPlayer(playerItem: item)
+                
+                // Observe Buffering State
+                self.timeControlStatusObserver = self.player?.observe(\.timeControlStatus, options: [.new, .initial]) { [weak self] player, _ in
+                    DispatchQueue.main.async {
+                        // waitingToPlayAtSpecifiedRate usually means buffering
+                        self?.isBuffering = (player.timeControlStatus == .waitingToPlayAtSpecifiedRate)
+                    }
+                }
+                
                 self.player?.play()
                 self.setupNowPlaying(channel: channel)
             }

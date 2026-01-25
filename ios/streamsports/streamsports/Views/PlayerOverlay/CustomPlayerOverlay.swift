@@ -316,6 +316,12 @@ struct CustomPlayerOverlay: View {
             manager.showControls = true
             scheduleAutoHide()
         }
+        .onChange(of: manager.isBuffering) { isBuffering in
+            // When buffering finishes, start the timer to hide controls
+            if !isBuffering && manager.showControls {
+                scheduleAutoHide()
+            }
+        }
     }
     
     // Logic
@@ -339,8 +345,8 @@ struct CustomPlayerOverlay: View {
         let currentTimestamp = Date()
         DispatchQueue.main.asyncAfter(deadline: .now() + 4.0) {
             // Check if controls are still shown and user hasn't interacted recently?
-            // Simplified: Just hide if playing
-            if manager.isPlaying && !isSeeking {
+            // Simplified: Just hide if playing AND NOT BUFFERING
+            if manager.isPlaying && !isSeeking && !manager.isBuffering {
                 withAnimation {
                     manager.showControls = false
                 }
@@ -453,22 +459,28 @@ struct PlayerControlsView: View {
             
             // CENTER CONTROLS
             HStack(spacing: 50) {
-                Button(action: {
-                    manager.seek(to: currentTime - 10)
-                }) {
-                   Image(systemName: "gobackward.10").font(.system(size: 34)).foregroundColor(.white)
-                }
-                
-                Button(action: { manager.togglePlayPause() }) {
-                    Image(systemName: manager.isPlaying ? "pause.circle.fill" : "play.circle.fill")
-                        .font(.system(size: 64))
-                        .foregroundColor(.white)
-                }
-                
-                Button(action: {
-                    manager.seek(to: currentTime + 10)
-                }) {
-                    Image(systemName: "goforward.10").font(.system(size: 34)).foregroundColor(.white)
+                if manager.isBuffering {
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                        .scaleEffect(2.0)
+                } else {
+                    Button(action: {
+                        manager.seek(to: currentTime - 10)
+                    }) {
+                       Image(systemName: "gobackward.10").font(.system(size: 28)).foregroundColor(.white)
+                    }
+                    
+                    Button(action: { manager.togglePlayPause() }) {
+                        Image(systemName: manager.isPlaying ? "pause.circle.fill" : "play.circle.fill")
+                            .font(.system(size: 50))
+                            .foregroundColor(.white)
+                    }
+                    
+                    Button(action: {
+                        manager.seek(to: currentTime + 10)
+                    }) {
+                        Image(systemName: "goforward.10").font(.system(size: 28)).foregroundColor(.white)
+                    }
                 }
             }
             

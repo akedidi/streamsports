@@ -68,11 +68,13 @@ struct EventRow: View {
                 .contentShape(Rectangle()) // Make entire row tappable including Spacer
             }
             .buttonStyle(PlainButtonStyle())
+            .animation(nil, value: isExpanded) // Keep header fixed during expansion
             
             // Expanded channels
             if isExpanded {
                 ForEach(group.channels, id: \.id) { channel in
                     Button(action: {
+                        print("[EventRow] Clicked channel: \(channel.name) (ID: \(channel.id))")
                         PlayerManager.shared.play(channel: channel)
                     }) {
                         HStack {
@@ -116,6 +118,7 @@ struct EventRow: View {
                             .padding(.bottom, 4)
                         }
                     }
+                    .buttonStyle(PlainButtonStyle()) // Fix for click targets in List
                     Divider().background(Color.gray.opacity(0.2)).padding(.leading, 60)
                 }
             }

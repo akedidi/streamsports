@@ -1,0 +1,15 @@
+{
+    "name": "StreamSports",
+    "identifier": "anis.com.streamsports",
+    "sourceURL": "https://raw.githubusercontent.com/akedidi/streamsports/main/web/public/sidestore.json",
+    "apps": [
+        {
+            "name": "StreamSports",
+            "bundleIdentifier": "anis.com.streamsports",
+            "developerName": "Anis Kedidi",
+            "localizedDescription": "StreamSports est votre compagnon de streaming sportif ultime. Regardez vos événements préférés en direct.",
+            "iconURL": "https://raw.githubusercontent.com/akedidi/streamsports/main/web/public/icon.png",
+            "versions": []
+        }
+    ]
+}

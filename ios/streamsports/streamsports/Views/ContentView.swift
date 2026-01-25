@@ -24,6 +24,7 @@ struct ContentView: View {
             .frame(maxHeight: .infinity)
             //.padding(.bottom, 60) // Removed for full height
             .edgesIgnoringSafeArea(.bottom)
+            .padding(.bottom, (!playerManager.isPlaying || playerManager.isMiniPlayer) ? 80 : 0)
             
             // Custom Tab Bar (Placed BEFORE Player overlay)
             // Show TabBar if: 1. Not Playing, OR 2. Is Mini Player
