@@ -671,6 +671,20 @@
                 padding: 0 20px;
             }
 
+            /* Player Specific Loader */
+            .player-loader {
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: black;
+                display: none;
+                align-items: center;
+                justify-content: center;
+                z-index: 20;
+            }
+
             /* Compact switch for mobile */
 
 
@@ -754,6 +768,12 @@
                     <h1>Select a Stream</h1>
                     <p>Choose a live TV channel or sports event from the sidebar to start watching in HD.</p>
                 </div>
+
+                <!-- Player Loader -->
+                <div id="playerLoader" class="player-loader">
+                    <div class="spinner"></div>
+                </div>
+
                 <video id="videoPlayer" style="display: none; width: 100%; height: 100%; background: #000;"></video>
 
                 <!-- Custom Integrated Controls Bar -->
