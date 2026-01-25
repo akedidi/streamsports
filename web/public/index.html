@@ -1521,6 +1521,8 @@
                 if (loadingToast) {
                     loadingToastText.innerText = `Loading ${item.channel_name || item.name || 'stream'}...`;
                     loadingToast.style.display = 'flex';
+                    // Auto-hide after 2 seconds
+                    setTimeout(() => { loadingToast.style.display = 'none'; }, 2000);
                 }
 
                 // Show spinner
