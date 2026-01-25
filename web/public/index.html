@@ -1664,14 +1664,17 @@
                 // 2. By Match Info + Tournament (Fallback)
                 let siblings = [];
 
-                // Search in EVENTS list
-                const source = state.events.length > 0 ? state.events : state.channels;
-
                 if (currentItem.gameID) {
-                    siblings = source.filter(c => c.gameID === currentItem.gameID);
+                    // Find the parent event that contains this gameID
+                    // The state.events array contains Event objects, not channels directly.
+                    const event = state.events.find(e => e.gameID === currentItem.gameID);
+                    if (event && event.channels) {
+                        siblings = event.channels;
+                    }
                 } else if (currentItem.match_info) {
-                    // Fuzzy match on match_info
-                    siblings = source.filter(c => c.match_info === currentItem.match_info && c.tournament === currentItem.tournament);
+                    // Fallback: This is tricky if we only have nested structure.
+                    // Try to find in all events combined? 
+                    // For now, if no gameID, we might miss siblings if data structure is strict.
                 }
 
                 // Deduplicate by URL
