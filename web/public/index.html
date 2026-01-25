@@ -993,9 +993,19 @@
                             }
                         }
                     }
-                }
 
-                console.log('Hydrated channel status for', state.events.length, 'events');
+                    if (channelName.includes('ABC')) {
+                        console.log('DEBUG MATCHING:', {
+                            raw: channelName,
+                            norm: key,
+                            foundExact: statusMap.has(key),
+                            mapKeysLikeABC: Array.from(statusMap.keys()).filter(k => k.includes('abc'))
+                        });
+                    }
+                }
+            }
+
+            console.log('Hydrated channel status for', state.events.length, 'events');
             }
 
             // --- Initialization ---
