@@ -5,6 +5,8 @@ struct ContentView: View {
     @State private var expandedEvents: Set<String> = []
     @State private var selectedTab: Int = 0 // 0: Events, 1: Channels
     
+    @ObservedObject var playerManager = PlayerManager.shared // Observe for animation
+    
     // Custom Colors
     let bgDark = Color(red: 0.05, green: 0.05, blue: 0.05)
     
@@ -20,12 +22,13 @@ struct ContentView: View {
                 }
             }
             .frame(maxHeight: .infinity)
-            .padding(.bottom, 60) // Space for TabBar
+            //.padding(.bottom, 60) // Removed for full height
+            .edgesIgnoringSafeArea(.bottom)
             
             // Custom Tab Bar (Placed BEFORE Player overlay)
             // Show TabBar if: 1. Not Playing, OR 2. Is Mini Player
             // Hide TabBar ONLY if: Playing AND Full Screen (Not Mini)
-            if !PlayerManager.shared.isPlaying || PlayerManager.shared.isMiniPlayer {
+            if !playerManager.isPlaying || playerManager.isMiniPlayer {
                 VStack {
                     Spacer()
                     CustomTabBar(selectedTab: $selectedTab)
@@ -34,8 +37,13 @@ struct ContentView: View {
             }
             
             // Global Player (Top of ZStack)
-            CustomPlayerOverlay()
+            if playerManager.currentChannel != nil {
+                CustomPlayerOverlay()
+                    .transition(.move(edge: .bottom))
+                    .zIndex(100)
+            }
         }
+        .animation(.spring(response: 0.35, dampingFraction: 0.8), value: playerManager.currentChannel != nil)
         .background(bgDark.edgesIgnoringSafeArea(.all))
         .environmentObject(viewModel)
         .onAppear {

@@ -69,9 +69,15 @@ struct ChannelsView: View {
                     .listRowBackground(Color.clear)
                 }
                 .listStyle(PlainListStyle())
+                .edgesIgnoringSafeArea(.bottom)
                 .refreshable {
                     await viewModel.reload()
                 }
+                
+                // Spacer for Mini Player & Tab Bar
+                Color.clear.frame(height: 160)
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
             }
         }
     }

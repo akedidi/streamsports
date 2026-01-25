@@ -45,6 +45,8 @@ struct CustomPlayerOverlay: View {
     @State private var currentTime: Double = 0
     @State private var duration: Double = 0
     @State private var isSeeking = false
+    @State private var showCastSheet = false
+
     
     // Internal state
     @State private var isLandscapeMode = false
@@ -126,6 +128,7 @@ struct CustomPlayerOverlay: View {
                                             currentTime: $currentTime,
                                             duration: $duration,
                                             isSeeking: $isSeeking,
+                                            showCastSheet: $showCastSheet,
                                             toggleFullscreen: toggleFullscreen
                                         )
                                         .transition(.opacity)
@@ -272,6 +275,20 @@ struct CustomPlayerOverlay: View {
                             }
                         }
                     )
+                    .simultaneousGesture(
+                        DragGesture().onEnded { value in
+                            if !isLandscapeMode && !manager.isMiniPlayer {
+                                if value.translation.height > 100 {
+                                    minimizePlayer()
+                                }
+                            }
+                        }
+                    )
+                    .sheet(isPresented: $showCastSheet) {
+                        CastDeviceSheet(isPresented: $showCastSheet)
+                            .presentationDetents([.medium])
+                            .presentationDragIndicator(.visible)
+                    }
                 }
             }
         }
@@ -409,6 +426,7 @@ struct PlayerControlsView: View {
     @Binding var currentTime: Double
     @Binding var duration: Double
     @Binding var isSeeking: Bool
+    @Binding var showCastSheet: Bool
     let toggleFullscreen: () -> Void
     
     var body: some View {
@@ -473,7 +491,14 @@ struct PlayerControlsView: View {
                     Spacer()
                     
                     HStack(spacing: 20) {
-                        ChromecastButton().frame(width: 24, height: 24)
+                        // Use ChromecastButton (visual only) with manual tap trigger
+                        ChromecastButton()
+                            .frame(width: 24, height: 24)
+                            .contentShape(Rectangle()) // Ensure tap target
+                            .onTapGesture {
+                                showCastSheet = true
+                            }
+
                         
                         Button(action: {
                             // PiP Action (Placeholder for now as Logic needs AVPictureInPictureController)
@@ -559,11 +584,11 @@ struct MiniPlayerControls: View {
          HStack(spacing: 8) {
             // Logo / Flag
             Group {
-                if let img = channel.image, let url = URL(string: img) {
+                if let img = channel.countryIMG, let url = URL(string: img) {
                     AsyncImage(url: url) { phase in
                         if let image = phase.image { image.resizable().aspectRatio(contentMode: .fit) } else { Color.clear }
                     }
-                } else if let img = channel.countryIMG, let url = URL(string: img) {
+                } else if let img = channel.image, let url = URL(string: img) {
                     AsyncImage(url: url) { phase in
                         if let image = phase.image { image.resizable().aspectRatio(contentMode: .fit) } else { Color.clear }
                     }
@@ -577,7 +602,9 @@ struct MiniPlayerControls: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(channel.name)
                     .font(.system(size: 13, weight: .semibold))
-                    .lineLimit(1)
+                    .lineLimit(2) // Allow 2 lines
+                    .minimumScaleFactor(0.9) // Slight shrink if needed
+                    .fixedSize(horizontal: false, vertical: true) // Allow growing vertically
                     .foregroundColor(.white)
             }
             

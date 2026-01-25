@@ -16,13 +16,32 @@ struct ChannelRow: View {
                     Circle().stroke(Color.black.opacity(0.5), lineWidth: 1)
                 )
             
-            AsyncImage(url: URL(string: channel.image ?? "")) { image in
-                image.resizable().aspectRatio(contentMode: .fit)
-            } placeholder: {
-                Color.gray.opacity(0.3)
+            if let img = channel.image, let url = URL(string: img) {
+                AsyncImage(url: url) { phase in
+                    if let image = phase.image {
+                        image.resizable().aspectRatio(contentMode: .fit)
+                    } else if phase.error != nil {
+                        // Error State
+                        Image(systemName: "tv").resizable().aspectRatio(contentMode: .fit).foregroundColor(.gray.opacity(0.5)).padding(8)
+                    } else {
+                        // Loading State
+                        Color.gray.opacity(0.1)
+                    }
+                }
+                .frame(width: 44, height: 44)
+                .background(Color.white.opacity(0.05))
+                .cornerRadius(6)
+            } else {
+                // No Image URL
+                Image(systemName: "tv")
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .foregroundColor(.gray.opacity(0.5))
+                    .padding(10)
+                    .frame(width: 44, height: 44)
+                    .background(Color.white.opacity(0.05))
+                    .cornerRadius(6)
             }
-            .frame(width: 44, height: 44)
-            .cornerRadius(6)
             
             VStack(alignment: .leading, spacing: 2) {
                 Text(channel.name)

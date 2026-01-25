@@ -12,6 +12,13 @@ struct EventRow: View {
             // Main Row
             Button(action: expandAction) {
                 HStack(spacing: 12) {
+                    // Country Flag (Moved to far left)
+                    if let img = group.displayItem.countryIMG, let url = URL(string: img) {
+                        AsyncImage(url: url) { ph in ph.resizable() } placeholder: { Color.clear }
+                            .frame(width: 20, height: 15)
+                            .cornerRadius(2)
+                    }
+                    
                     // Time / Live Status
                     VStack(spacing: 2) {
                         if group.displayItem.status == "live" {
@@ -43,10 +50,6 @@ struct EventRow: View {
                             
                         // Subtitle: League / Country
                         HStack(spacing: 6) {
-                            if let img = group.displayItem.countryIMG, let url = URL(string: img) {
-                                AsyncImage(url: url) { ph in ph.resizable() } placeholder: { Color.clear }
-                                    .frame(width: 16, height: 12)
-                            }
                             Text(group.displayItem.tournament ?? group.displayItem.sport_category ?? "")
                                 .font(.caption)
                                 .foregroundColor(Color.blue.opacity(0.8))
