@@ -1985,7 +1985,8 @@
 
                     btn.onclick = (e) => {
                         e.stopPropagation();
-                        if (!isActive) playStream(ch, null);
+                        // Preserve eventKey so server list stays visible
+                        if (!isActive) playStream({ ...ch, eventKey: eventKey }, null);
                     };
 
                     list.appendChild(btn);
