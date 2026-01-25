@@ -570,20 +570,6 @@
             }
         }
 
-        /* Player Loader - positioned within player-area context */
-        #playerLoader {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.95);
-            display: none;
-            align-items: center;
-            justify-content: center;
-            z-index: 50;
-        }
-
 
 
         /* --- Mobile Responsiveness --- */
@@ -753,9 +739,6 @@
                     </svg>
                     <h1>Select a Stream</h1>
                     <p>Choose a live TV channel or sports event from the sidebar to start watching in HD.</p>
-                </div>
-                <div id="playerLoader">
-                    <div class="spinner"></div>
                 </div>
                 <video id="videoPlayer" style="display: none; width: 100%; height: 100%; background: #000;"></video>
 
@@ -1474,15 +1457,10 @@
             // --- Player Logic ---
             async function playStream(item, el) {
                 console.log('DEBUG: playStream called for', item.name || 'Unknown');
-
-                // Show spinner
-                const playerLoader = document.getElementById('playerLoader');
-                if (playerLoader) playerLoader.style.display = 'flex';
-
                 currentStreamUrl = null;
                 // Highlight
                 document.querySelectorAll('.channel-item, .event-card').forEach(i => i.classList.remove('playing'));
-                if (el) el.classList.add('playing');
+                el.classList.add('playing');
 
                 els.placeholder.style.display = 'none';
                 els.video.style.display = 'block';
@@ -1496,8 +1474,6 @@
                     t.innerText = msg;
                     t.style.display = 'block';
                     setTimeout(() => t.style.display = 'none', 4000);
-                    // Hide spinner on error
-                    if (playerLoader) playerLoader.style.display = 'none';
                 };
 
                 try {
@@ -1526,24 +1502,12 @@
                             els.video.src = data.streamUrl;
                             els.video.play();
                         }
-
-                        // Hide spinner when video starts playing
-                        els.video.onplaying = () => {
-                            if (playerLoader) playerLoader.style.display = 'none';
-                        };
-                        // Show spinner when buffering
-                        els.video.onwaiting = () => {
-                            if (playerLoader) playerLoader.style.display = 'flex';
-                        };
                     } else {
                         showError("Channel Offline (404)");
                     }
                 } catch (e) {
                     showError("Connection Failed");
                 }
-
-                // Render Server List (Sibling channels)
-                renderServerList(item);
             }
 
             // --- Custom Controls Setup ---
