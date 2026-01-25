@@ -1559,18 +1559,35 @@
                             hls.attachMedia(els.video);
                             hls.on(Hls.Events.MANIFEST_PARSED, () => els.video.play());
                             hls.on(Hls.Events.ERROR, (e, d) => {
-                                if (d.fatal) showError("Stream connection lost");
+                                if (d.fatal) {
+                                    showError("Stream connection lost");
+                                    if (loader) loader.style.display = 'none';
+                                }
                             });
                         } else if (els.video.canPlayType('application/vnd.apple.mpegurl')) {
                             els.video.src = data.streamUrl;
                             els.video.play();
                         }
+
+                        // Hide loader when video starts playing
+                        els.video.onplaying = () => {
+                            if (loader) loader.style.display = 'none';
+                        };
+                        // Show loader when buffering
+                        els.video.onwaiting = () => {
+                            if (loader) loader.style.display = 'flex';
+                        };
                     } else {
                         showError("Channel Offline (404)");
+                        if (loader) loader.style.display = 'none';
                     }
                 } catch (e) {
                     showError("Connection Failed");
+                    if (loader) loader.style.display = 'none';
                 }
+
+                // Render Server List (Sibling channels)
+                renderServerList(item);
             }
 
             // --- Custom Controls Setup ---
