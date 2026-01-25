@@ -512,16 +512,6 @@
             }
         }
 
-        /* --- Player Container --- */
-        .player-container {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            min-width: 0;
-            background: black;
-            overflow: hidden;
-        }
-
         /* --- Player Area --- */
         .player-area {
             flex: 1;
@@ -552,20 +542,6 @@
         }
 
         /* --- Loader --- */
-        .player-loader {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: black;
-            display: none;
-            /* Hidden by default */
-            align-items: center;
-            justify-content: center;
-            z-index: 20;
-        }
-
         #loading {
             position: fixed;
             top: 0;
@@ -592,6 +568,20 @@
             to {
                 transform: rotate(360deg);
             }
+        }
+
+        /* Player Loader */
+        #playerLoader {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.9);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 15;
         }
 
 
@@ -646,20 +636,16 @@
                 height: auto;
             }
 
-            .player-container {
-                width: 100%;
-                position: sticky;
-                top: 0;
-                z-index: 100;
-                order: -1;
-                background: black;
-            }
-
             .player-area {
                 width: 100%;
                 height: 250px;
                 /* Fixed height for video on mobile */
                 min-height: 250px;
+                position: sticky;
+                top: 0;
+                z-index: 100;
+                order: -1;
+                /* Ensure player is on top */
             }
 
             .sidebar {
@@ -684,8 +670,6 @@
                 font-size: 0.9rem;
                 padding: 0 20px;
             }
-
-            /* Compact switch for mobile */
 
             /* Compact switch for mobile */
 
@@ -770,12 +754,9 @@
                     <h1>Select a Stream</h1>
                     <p>Choose a live TV channel or sports event from the sidebar to start watching in HD.</p>
                 </div>
-
-                <!-- Player Loader -->
-                <div id="playerLoader" class="player-loader">
+                <div id="playerLoader">
                     <div class="spinner"></div>
                 </div>
-
                 <video id="videoPlayer" style="display: none; width: 100%; height: 100%; background: #000;"></video>
 
                 <!-- Custom Integrated Controls Bar -->
@@ -982,53 +963,31 @@
                 const statusMap = new Map();
                 for (const ch of state.channels) {
                     if (ch.name && ch.status) {
-                        const key = normalizeName(ch.name);
+                        const key = ch.name.toLowerCase().trim();
                         statusMap.set(key, ch.status.toLowerCase());
                     }
                 }
 
                 // Update each event's channels with status from the map
                 for (const event of state.events) {
-                    if (!event.channels) continue;
-
-                    // Also check nested channels array if present (for Server List status)
-                    for (const ch of event.channels) {
-                        const name = ch.channel_name || ch.name || '';
-                        const key = normalizeName(name);
-                        if (statusMap.has(key)) {
-                            ch.status = statusMap.get(key);
-                        }
-                    }
-
-                    // Main event channel status (for Card display)
                     const channelName = event.channel_name || event.name || '';
-                    const key = normalizeName(channelName);
+                    const key = channelName.toLowerCase().trim();
 
                     if (statusMap.has(key)) {
                         event.channel_status = statusMap.get(key);
                     } else {
-                        // Fuzzy fallback: Check if Normalized Key starts with Map Key (e.g. "ABC HD" -> "ABC")
+                        // Try partial match (event channel name contains TV channel name or vice versa)
                         for (const [mapKey, mapStatus] of statusMap) {
-                            if (key.includes(mapKey) && mapKey.length > 2) { // Avoid short matches
+                            if (key.includes(mapKey) || mapKey.includes(key)) {
                                 event.channel_status = mapStatus;
                                 break;
                             }
                         }
                     }
-
-                    if (channelName.includes('ABC')) {
-                        console.log('DEBUG MATCHING:', {
-                            raw: channelName,
-                            norm: key,
-                            foundExact: statusMap.has(key),
-                            mapKeysLikeABC: Array.from(statusMap.keys()).filter(k => k.includes('abc'))
-                        });
-                    }
                 }
+
+                console.log('Hydrated channel status for', state.events.length, 'events');
             }
-
-            console.log('Hydrated channel status for', state.events.length, 'events');
-
 
             // --- Initialization ---
             async function init() {
@@ -1516,8 +1475,9 @@
             async function playStream(item, el) {
                 console.log('DEBUG: playStream called for', item.name || 'Unknown');
 
-                // Show Loader
-                document.getElementById('playerLoader').style.display = 'flex';
+                // Show spinner
+                const playerLoader = document.getElementById('playerLoader');
+                if (playerLoader) playerLoader.style.display = 'flex';
 
                 currentStreamUrl = null;
                 // Highlight
@@ -1536,6 +1496,8 @@
                     t.innerText = msg;
                     t.style.display = 'block';
                     setTimeout(() => t.style.display = 'none', 4000);
+                    // Hide spinner on error
+                    if (playerLoader) playerLoader.style.display = 'none';
                 };
 
                 try {
@@ -1558,33 +1520,26 @@
                             hls.attachMedia(els.video);
                             hls.on(Hls.Events.MANIFEST_PARSED, () => els.video.play());
                             hls.on(Hls.Events.ERROR, (e, d) => {
-                                if (d.fatal) {
-                                    showError("Stream connection lost");
-                                    document.getElementById('playerLoader').style.display = 'none';
-                                }
+                                if (d.fatal) showError("Stream connection lost");
                             });
                         } else if (els.video.canPlayType('application/vnd.apple.mpegurl')) {
                             els.video.src = data.streamUrl;
                             els.video.play();
                         }
 
-                        // Hide loader when video starts playing
+                        // Hide spinner when video starts playing
                         els.video.onplaying = () => {
-                            console.log('DEBUG: Video onplaying fired');
-                            document.getElementById('playerLoader').style.display = 'none';
+                            if (playerLoader) playerLoader.style.display = 'none';
                         };
-                        // Show loader when buffering
+                        // Show spinner when buffering
                         els.video.onwaiting = () => {
-                            console.log('DEBUG: Video onwaiting fired');
-                            document.getElementById('playerLoader').style.display = 'flex';
+                            if (playerLoader) playerLoader.style.display = 'flex';
                         };
                     } else {
                         showError("Channel Offline (404)");
-                        document.getElementById('playerLoader').style.display = 'none';
                     }
                 } catch (e) {
                     showError("Connection Failed");
-                    document.getElementById('playerLoader').style.display = 'none';
                 }
 
                 // Render Server List (Sibling channels)
@@ -1731,17 +1686,14 @@
                 // 2. By Match Info + Tournament (Fallback)
                 let siblings = [];
 
+                // Search in EVENTS list
+                const source = state.events.length > 0 ? state.events : state.channels;
+
                 if (currentItem.gameID) {
-                    // Find the parent event that contains this gameID
-                    // The state.events array contains Event objects, not channels directly.
-                    const event = state.events.find(e => e.gameID === currentItem.gameID);
-                    if (event && event.channels) {
-                        siblings = event.channels;
-                    }
+                    siblings = source.filter(c => c.gameID === currentItem.gameID);
                 } else if (currentItem.match_info) {
-                    // Fallback: This is tricky if we only have nested structure.
-                    // Try to find in all events combined? 
-                    // For now, if no gameID, we might miss siblings if data structure is strict.
+                    // Fuzzy match on match_info
+                    siblings = source.filter(c => c.match_info === currentItem.match_info && c.tournament === currentItem.tournament);
                 }
 
                 // Deduplicate by URL
