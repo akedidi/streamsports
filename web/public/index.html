@@ -1181,8 +1181,8 @@
             function renderChannelList(items) {
                 els.contentList.className = 'content-scroll channel-list'; // apply list class
 
-                const limit = 100;
-                items.slice(0, limit).forEach(item => {
+                // Display all channels (no limit)
+                items.forEach(item => {
                     const el = document.createElement('div');
                     el.className = 'channel-item';
                     el.onclick = () => playStream(item, el);
