@@ -960,22 +960,34 @@
                 const statusMap = new Map();
                 for (const ch of state.channels) {
                     if (ch.name && ch.status) {
-                        const key = ch.name.toLowerCase().trim();
+                        const key = normalizeName(ch.name);
                         statusMap.set(key, ch.status.toLowerCase());
                     }
                 }
 
                 // Update each event's channels with status from the map
                 for (const event of state.events) {
+                    if (!event.channels) continue;
+
+                    // Also check nested channels array if present (for Server List status)
+                    for (const ch of event.channels) {
+                        const name = ch.channel_name || ch.name || '';
+                        const key = normalizeName(name);
+                        if (statusMap.has(key)) {
+                            ch.status = statusMap.get(key);
+                        }
+                    }
+
+                    // Main event channel status (for Card display)
                     const channelName = event.channel_name || event.name || '';
-                    const key = channelName.toLowerCase().trim();
+                    const key = normalizeName(channelName);
 
                     if (statusMap.has(key)) {
                         event.channel_status = statusMap.get(key);
                     } else {
-                        // Try partial match (event channel name contains TV channel name or vice versa)
+                        // Fuzzy fallback: Check if Normalized Key starts with Map Key (e.g. "ABC HD" -> "ABC")
                         for (const [mapKey, mapStatus] of statusMap) {
-                            if (key.includes(mapKey) || mapKey.includes(key)) {
+                            if (key.includes(mapKey) && mapKey.length > 2) { // Avoid short matches
                                 event.channel_status = mapStatus;
                                 break;
                             }
