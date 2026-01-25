@@ -748,6 +748,31 @@
                 <div id="playerLoader">
                     <div class="spinner"></div>
                 </div>
+
+                <!-- Loading Toast (top-right) -->
+                <div id="loadingToast" style="
+                    position: absolute;
+                    top: 16px;
+                    right: 16px;
+                    background: rgba(99, 102, 241, 0.95);
+                    color: white;
+                    padding: 10px 16px;
+                    border-radius: 8px;
+                    font-size: 0.9rem;
+                    font-weight: 500;
+                    display: none;
+                    align-items: center;
+                    gap: 10px;
+                    z-index: 30;
+                    box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+                    animation: fadeIn 0.2s ease;
+                ">
+                    <div
+                        style="width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 0.8s linear infinite;">
+                    </div>
+                    <span id="loadingToastText">Loading...</span>
+                </div>
+
                 <video id="videoPlayer" style="display: none; width: 100%; height: 100%; background: #000;"></video>
 
                 <!-- Custom Integrated Controls Bar -->
@@ -1490,6 +1515,14 @@
             async function playStream(item, el) {
                 console.log('DEBUG: playStream called for', item.name || 'Unknown');
 
+                // Show loading toast
+                const loadingToast = document.getElementById('loadingToast');
+                const loadingToastText = document.getElementById('loadingToastText');
+                if (loadingToast) {
+                    loadingToastText.innerText = `Loading ${item.channel_name || item.name || 'stream'}...`;
+                    loadingToast.style.display = 'flex';
+                }
+
                 // Show spinner
                 const playerLoader = document.getElementById('playerLoader');
                 if (playerLoader) playerLoader.style.display = 'flex';
@@ -1512,6 +1545,7 @@
                     t.style.display = 'block';
                     setTimeout(() => t.style.display = 'none', 4000);
                     if (playerLoader) playerLoader.style.display = 'none';
+                    if (loadingToast) loadingToast.style.display = 'none';
                 };
 
                 try {
@@ -1541,9 +1575,10 @@
                             els.video.play();
                         }
 
-                        // Hide spinner when video plays
+                        // Hide spinner and toast when video plays
                         els.video.onplaying = () => {
                             if (playerLoader) playerLoader.style.display = 'none';
+                            if (loadingToast) loadingToast.style.display = 'none';
                         };
                         els.video.onwaiting = () => {
                             if (playerLoader) playerLoader.style.display = 'flex';
