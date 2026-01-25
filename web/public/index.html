@@ -1363,13 +1363,15 @@
                         channelItem.onmouseover = () => channelItem.style.background = 'rgba(255,255,255,0.05)';
                         channelItem.onmouseout = () => channelItem.style.background = 'transparent';
 
-                        // Create a temporary item object for this specific channel (include gameID for server list)
+                        // Create a temporary item object for this specific channel
+                        // Use eventKey for grouping (gameID or match_info or name)
+                        const eventKey = item.gameID || item.match_info || item.name;
                         const channelSpecificItem = {
                             ...item,
                             url: ch.url,
                             channel_name: ch.name,
                             code: ch.code,
-                            gameID: item.gameID // Explicitly preserve gameID
+                            eventKey: eventKey // For server list matching
                         };
 
                         channelItem.onclick = (e) => {
@@ -1919,18 +1921,36 @@
                     return;
                 }
 
-                // Only show for events with gameID
-                if (!currentItem.gameID) {
-                    console.log('DEBUG: No gameID in currentItem, hiding server list');
+                // Use eventKey for matching (same logic as grouping)
+                const eventKey = currentItem.eventKey || currentItem.gameID || currentItem.match_info || currentItem.name;
+
+                if (!eventKey) {
+                    console.log('DEBUG: No eventKey, hiding server list');
                     container.style.display = 'none';
                     return;
                 }
 
-                // Find siblings by gameID
+                // Find siblings by eventKey
                 let siblings = [];
-                const event = state.events.find(e => e.gameID === currentItem.gameID);
-                if (event && event.channels) {
-                    siblings = event.channels;
+                const event = state.events.find(e => {
+                    const eKey = e.gameID || e.match_info || e.name;
+                    return eKey === eventKey;
+                });
+
+                console.log('DEBUG: Found parent event:', event);
+
+                // Get channels from the grouped events map or from state.events
+                if (event) {
+                    // Find all events with the same key and collect their channels
+                    siblings = state.events
+                        .filter(e => (e.gameID || e.match_info || e.name) === eventKey)
+                        .map(e => ({
+                            name: e.channel_name || e.name,
+                            url: e.url,
+                            code: e.code,
+                            country: e.country || '',
+                            channel_name: e.channel_name
+                        }));
                 }
 
                 // Deduplicate by URL
