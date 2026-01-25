@@ -1363,8 +1363,14 @@
                         channelItem.onmouseover = () => channelItem.style.background = 'rgba(255,255,255,0.05)';
                         channelItem.onmouseout = () => channelItem.style.background = 'transparent';
 
-                        // Create a temporary item object for this specific channel
-                        const channelSpecificItem = { ...item, url: ch.url, channel_name: ch.name, code: ch.code };
+                        // Create a temporary item object for this specific channel (include gameID for server list)
+                        const channelSpecificItem = {
+                            ...item,
+                            url: ch.url,
+                            channel_name: ch.name,
+                            code: ch.code,
+                            gameID: item.gameID // Explicitly preserve gameID
+                        };
 
                         channelItem.onclick = (e) => {
                             e.stopPropagation();
@@ -1406,14 +1412,30 @@
 
             // --- Helpers ---
             function getChannelStatus(item) {
-                // Priority 1: Use hydrated channel_status (from hydrateEventChannelStatus)
-                if (item.channel_status) {
-                    return item.channel_status;
+                const channelName = item.channel_name || item.name || '';
+
+                // Normalize for matching
+                const normalize = (str) => str.toLowerCase().trim().replace(/[^a-z0-9]/g, '');
+                const normalizedName = normalize(channelName);
+
+                // Lookup in state.channels by name
+                const matchedChannel = state.channels.find(ch => {
+                    const chName = normalize(ch.name || '');
+                    return chName === normalizedName ||
+                        normalizedName.includes(chName) ||
+                        chName.includes(normalizedName);
+                });
+
+                if (matchedChannel && matchedChannel.status) {
+                    return matchedChannel.status.toLowerCase();
                 }
 
-                // Priority 2: Item's own status (for TV channels)
+                // Fallback to item's own status
                 if (item.status) {
                     return item.status.toLowerCase();
+                }
+                if (item.channel_status) {
+                    return item.channel_status;
                 }
 
                 return 'offline'; // Default
