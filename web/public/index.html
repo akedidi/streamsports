@@ -552,6 +552,20 @@
         }
 
         /* --- Loader --- */
+        .player-loader {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: black;
+            display: none;
+            /* Hidden by default */
+            align-items: center;
+            justify-content: center;
+            z-index: 20;
+        }
+
         #loading {
             position: fixed;
             top: 0;
@@ -671,19 +685,7 @@
                 padding: 0 20px;
             }
 
-            /* Player Specific Loader */
-            .player-loader {
-                position: absolute;
-                top: 0;
-                left: 0;
-                right: 0;
-                bottom: 0;
-                background: black;
-                display: none;
-                align-items: center;
-                justify-content: center;
-                z-index: 20;
-            }
+            /* Compact switch for mobile */
 
             /* Compact switch for mobile */
 
