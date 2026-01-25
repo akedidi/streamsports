@@ -50,87 +50,6 @@
             flex-direction: column;
         }
 
-        /* Server List */
-        .server-list-container {
-            display: none;
-            /* Hidden by default */
-            align-items: center;
-            padding: 10px 20px;
-            background: rgba(255, 255, 255, 0.03);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-            overflow: hidden;
-        }
-
-        .server-label {
-            font-size: 0.9em;
-            color: #94a3b8;
-            margin-right: 15px;
-            font-weight: 600;
-            white-space: nowrap;
-        }
-
-        .server-scroller {
-            display: flex;
-            gap: 10px;
-            overflow-x: auto;
-            padding-bottom: 4px;
-            /* Space for scrollbar */
-        }
-
-        .server-scroller::-webkit-scrollbar {
-            height: 4px;
-        }
-
-        .server-scroller::-webkit-scrollbar-thumb {
-            background: #444;
-            border-radius: 2px;
-        }
-
-        .server-btn {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            background: #1e293b;
-            padding: 6px 12px;
-            border-radius: 6px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            cursor: pointer;
-            transition: all 0.2s;
-            min-width: max-content;
-        }
-
-        .server-btn:hover {
-            background: #334155;
-        }
-
-        .server-btn.active {
-            background: #22c55e;
-            color: #000;
-            border-color: #22c55e;
-            font-weight: 600;
-        }
-
-        .server-btn img {
-            width: 16px;
-            height: 16px;
-            object-fit: contain;
-        }
-
-        .server-info {
-            display: flex;
-            flex-direction: column;
-            line-height: 1.1;
-        }
-
-        .server-name {
-            font-size: 0.85em;
-        }
-
-        .server-meta {
-            font-size: 0.75em;
-            opacity: 0.8;
-        }
-
         /* --- Scrollbar --- */
         ::-webkit-scrollbar {
             width: 6px;
@@ -570,6 +489,89 @@
             }
         }
 
+        /* Player Loading Spinner */
+        #playerLoader {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 20;
+        }
+
+        /* Server List */
+        .server-list-container {
+            display: none;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            background: var(--bg-surface);
+            border-bottom: 1px solid var(--border-glass);
+        }
+
+        .server-label {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
+        .server-scroller {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            flex: 1;
+        }
+
+        .server-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 14px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+
+        .server-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: var(--primary);
+        }
+
+        .server-btn.active {
+            background: var(--primary);
+            border-color: var(--primary);
+        }
+
+        .server-btn img {
+            width: 20px;
+            height: 15px;
+            border-radius: 2px;
+        }
+
+        .server-info {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .server-name {
+            color: white;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+
+        .server-meta {
+            color: var(--text-muted);
+            font-size: 0.7rem;
+        }
+
 
 
         /* --- Mobile Responsiveness --- */
@@ -720,7 +722,7 @@
 
         </div>
 
-        <div id="playerContainer" class="player-container">
+        <div id="playerContainer" class="player-container" style="display: flex; flex-direction: column; flex: 1;">
             <!-- Server List Header -->
             <div id="serverListContainer" class="server-list-container">
                 <span class="server-label">Servers:</span>
@@ -730,7 +732,7 @@
             </div>
 
             <!-- Cinema Player -->
-            <div class="player-area">
+            <div class="player-area" style="flex: 1;">
                 <div id="playerPlaceholder" class="placeholder-content">
                     <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"
                         style="margin-bottom: 24px;">
@@ -739,6 +741,9 @@
                     </svg>
                     <h1>Select a Stream</h1>
                     <p>Choose a live TV channel or sports event from the sidebar to start watching in HD.</p>
+                </div>
+                <div id="playerLoader">
+                    <div class="spinner"></div>
                 </div>
                 <video id="videoPlayer" style="display: none; width: 100%; height: 100%; background: #000;"></video>
 
@@ -1457,10 +1462,15 @@
             // --- Player Logic ---
             async function playStream(item, el) {
                 console.log('DEBUG: playStream called for', item.name || 'Unknown');
+
+                // Show spinner
+                const playerLoader = document.getElementById('playerLoader');
+                if (playerLoader) playerLoader.style.display = 'flex';
+
                 currentStreamUrl = null;
                 // Highlight
                 document.querySelectorAll('.channel-item, .event-card').forEach(i => i.classList.remove('playing'));
-                el.classList.add('playing');
+                if (el) el.classList.add('playing');
 
                 els.placeholder.style.display = 'none';
                 els.video.style.display = 'block';
@@ -1474,6 +1484,7 @@
                     t.innerText = msg;
                     t.style.display = 'block';
                     setTimeout(() => t.style.display = 'none', 4000);
+                    if (playerLoader) playerLoader.style.display = 'none';
                 };
 
                 try {
@@ -1502,12 +1513,23 @@
                             els.video.src = data.streamUrl;
                             els.video.play();
                         }
+
+                        // Hide spinner when video plays
+                        els.video.onplaying = () => {
+                            if (playerLoader) playerLoader.style.display = 'none';
+                        };
+                        els.video.onwaiting = () => {
+                            if (playerLoader) playerLoader.style.display = 'flex';
+                        };
                     } else {
                         showError("Channel Offline (404)");
                     }
                 } catch (e) {
                     showError("Connection Failed");
                 }
+
+                // Render server list
+                renderServerList(item);
             }
 
             // --- Custom Controls Setup ---
@@ -1630,76 +1652,6 @@
 
                 // Initial show
                 showControls();
-
-                // Render Server List (Sibling channels)
-                renderServerList(item);
-            }
-
-            function renderServerList(currentItem) {
-                const container = document.getElementById('serverListContainer');
-                const list = document.getElementById('serverList');
-
-                // Only show for events context or if gameID exists
-                if (state.currentTab !== 'events' && !currentItem.gameID) {
-                    container.style.display = 'none';
-                    return;
-                }
-
-                // Find siblings
-                // 1. By GameID (Best)
-                // 2. By Match Info + Tournament (Fallback)
-                let siblings = [];
-
-                // Search in EVENTS list
-                const source = state.events.length > 0 ? state.events : state.channels;
-
-                if (currentItem.gameID) {
-                    siblings = source.filter(c => c.gameID === currentItem.gameID);
-                } else if (currentItem.match_info) {
-                    // Fuzzy match on match_info
-                    siblings = source.filter(c => c.match_info === currentItem.match_info && c.tournament === currentItem.tournament);
-                }
-
-                // Deduplicate by URL
-                siblings = siblings.filter((c, index, self) =>
-                    index === self.findIndex((t) => (t.url === c.url))
-                );
-
-                if (siblings.length < 2) {
-                    container.style.display = 'none';
-                    return;
-                }
-
-                // Show container
-                container.style.display = 'flex';
-                list.innerHTML = '';
-
-                // Sort: Current first? No, list order is better.
-
-                siblings.forEach(ch => {
-                    const btn = document.createElement('div');
-                    const isActive = ch.url === currentItem.url;
-                    btn.className = `server-btn ${isActive ? 'active' : ''}`;
-
-                    // Content
-                    let icon = '';
-                    if (ch.code) icon = `<img src="https://flagcdn.com/20x15/${ch.code.toLowerCase()}.png">`;
-
-                    btn.innerHTML = `
-                    ${icon}
-                    <div class="server-info">
-                        <span class="server-name">${ch.channel_name || ch.name}</span>
-                        <span class="server-meta">${ch.country || ''}</span>
-                    </div>
-                `;
-
-                    btn.onclick = (e) => {
-                        e.stopPropagation();
-                        if (!isActive) playStream(ch, null);
-                    };
-
-                    list.appendChild(btn);
-                });
             }
 
             // Control Functions
@@ -1933,6 +1885,65 @@
             fetchEPG(); // Start fetching EPG
             init();
             var currentTab = 'channels'; // Global needed for stats
+
+            // --- Server List (Sibling Channels) ---
+            function renderServerList(currentItem) {
+                const container = document.getElementById('serverListContainer');
+                const list = document.getElementById('serverList');
+
+                if (!container || !list) return;
+
+                // Only show for events with gameID
+                if (!currentItem.gameID) {
+                    container.style.display = 'none';
+                    return;
+                }
+
+                // Find siblings by gameID
+                let siblings = [];
+                const event = state.events.find(e => e.gameID === currentItem.gameID);
+                if (event && event.channels) {
+                    siblings = event.channels;
+                }
+
+                // Deduplicate by URL
+                siblings = siblings.filter((c, index, self) =>
+                    index === self.findIndex((t) => (t.url === c.url))
+                );
+
+                if (siblings.length < 2) {
+                    container.style.display = 'none';
+                    return;
+                }
+
+                // Show container
+                container.style.display = 'flex';
+                list.innerHTML = '';
+
+                siblings.forEach(ch => {
+                    const btn = document.createElement('div');
+                    const isActive = ch.url === currentItem.url;
+                    btn.className = `server-btn ${isActive ? 'active' : ''}`;
+
+                    let icon = '';
+                    if (ch.code) icon = `<img src="https://flagcdn.com/20x15/${ch.code.toLowerCase()}.png">`;
+
+                    btn.innerHTML = `
+                        ${icon}
+                        <div class="server-info">
+                            <span class="server-name">${ch.channel_name || ch.name}</span>
+                            <span class="server-meta">${ch.country || ''}</span>
+                        </div>
+                    `;
+
+                    btn.onclick = (e) => {
+                        e.stopPropagation();
+                        if (!isActive) playStream(ch, null);
+                    };
+
+                    list.appendChild(btn);
+                });
+            }
         </script>
 </body>
 
