@@ -86,7 +86,7 @@ class ChromecastManager: NSObject, ObservableObject, GCKSessionManagerListener, 
         builder.metadata = metadata
         
         // CRITICAL: Set HLS segment format to TS (from AnisFlix)
-        builder.hlsSegmentFormat = .ts
+        builder.hlsSegmentFormat = .TS
         
         let mediaInfo = builder.build()
         print("[ChromecastManager] MediaInfo built - ContentID: \(mediaInfo.contentID ?? "nil")")
