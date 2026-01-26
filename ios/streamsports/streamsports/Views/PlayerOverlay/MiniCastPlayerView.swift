@@ -31,23 +31,21 @@ struct MiniCastPlayerView: View {
             .cornerRadius(4)
             .padding(.leading, 12)
             
-            Spacer()
-            
             // Info
-            VStack(alignment: .center, spacing: 2) {
+            VStack(alignment: .leading, spacing: 2) {
                 Text(channel.name)
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundColor(.white)
                     .lineLimit(1)
-                    .multilineTextAlignment(.center)
                 
                 HStack(spacing: 4) {
-                    Image(systemName: "airplayvideo") // or tv
+                    Image(systemName: "airplayvideo")
                         .font(.system(size: 10))
                     
                     if let deviceName = GCKCastContext.sharedInstance().sessionManager.currentCastSession?.device.friendlyName {
                          Text("Casting to \(deviceName)")
                             .font(.caption)
+                            .lineLimit(1)
                     } else {
                          Text("Casting to TV")
                             .font(.caption)

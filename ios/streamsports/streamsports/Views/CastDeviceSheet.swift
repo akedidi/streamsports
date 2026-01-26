@@ -8,11 +8,37 @@ struct CastDeviceSheet: View {
     var body: some View {
         NavigationView {
             VStack {
-                if manager.devices.isEmpty {
+                if manager.isConnected {
+                    // Connected State
+                    VStack(spacing: 20) {
+                        Spacer()
+                        Image(systemName: "tv.fill")
+                            .font(.system(size: 50))
+                            .foregroundColor(.blue)
+                        Text("Connected to \(manager.devices.first?.friendlyName ?? "Device")")
+                            .font(.headline)
+                            .foregroundColor(.white)
+                        
+                        Button(action: {
+                            manager.disconnect()
+                            isPresented = false
+                        }) {
+                            Text("Disconnect")
+                                .font(.headline)
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                                .background(Color.red.opacity(0.8))
+                                .cornerRadius(12)
+                        }
+                        .padding(.horizontal)
+                        Spacer()
+                    }
+                } else if manager.devices.isEmpty {
                     Spacer()
                     VStack(spacing: 16) {
                         ProgressView()
-                            .scaleEffect(1.5)
+                            .scaleEffect(1.2)
                             .tint(.white)
                         Text("Searching for devices...")
                             .foregroundColor(.gray)
@@ -29,39 +55,20 @@ struct CastDeviceSheet: View {
                                     Image(systemName: "tv")
                                         .font(.title3)
                                         .foregroundColor(.white)
-                                    
-                                    VStack(alignment: .leading) {
-                                        Text(device.friendlyName ?? "Unknown Device")
-                                            .font(.body)
-                                            .foregroundColor(.white)
-                                            .fontWeight(.medium)
-                                    }
-                                    
+                                    Text(device.friendlyName ?? "Unknown Device")
+                                        .font(.body)
+                                        .foregroundColor(.white)
                                     Spacer()
                                 }
                                 .padding(.vertical, 8)
                             }
                             .listRowBackground(Color.clear)
                         }
-                        
-                        // Always show spinner at the bottom
-                        HStack {
-                            Spacer()
-                            ProgressView()
-                                .tint(.gray)
-                            Text("Searching...")
-                                .font(.caption)
-                                .foregroundColor(.gray)
-                            Spacer()
-                        }
-                        .padding(.vertical, 16)
-                        .listRowBackground(Color.clear)
-                        .listRowSeparator(.hidden)
                     }
                     .listStyle(.plain)
                 }
             }
-            .background(Color(white: 0.1).edgesIgnoringSafeArea(.all))
+            .background(Color(UIColor.systemGray6).edgesIgnoringSafeArea(.all))
             .navigationTitle("Cast to")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
