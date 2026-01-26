@@ -8,7 +8,7 @@ import SwiftUI
 // 2. Uncomment the import and the code below
 import GoogleCast
 
-class ChromecastManager: NSObject, ObservableObject, GCKSessionManagerListener {
+class ChromecastManager: NSObject, ObservableObject, GCKSessionManagerListener, GCKRemoteMediaClientListener {
     static let shared = ChromecastManager()
     
     @Published var devices: [GCKDevice] = []
@@ -39,8 +39,19 @@ class ChromecastManager: NSObject, ObservableObject, GCKSessionManagerListener {
     }
     
     func cast(url: URL, title: String, image: String?) {
-        guard let session = GCKCastContext.sharedInstance().sessionManager.currentCastSession else { return }
+        guard let session = GCKCastContext.sharedInstance().sessionManager.currentCastSession else {
+            print("[ChromecastManager] Error: No active Cast Session found when trying to cast.")
+            return
+        }
         
+        guard let remoteClient = session.remoteMediaClient else {
+             print("[ChromecastManager] Error: No RemoteMediaClient available.")
+             return
+        }
+        
+        remoteClient.add(self) // Listen for media status
+        
+        print("[ChromecastManager] Building MediaInfo for URL: \(url.absoluteString)")
         let metadata = GCKMediaMetadata(metadataType: .generic)
         metadata.setString(title, forKey: kGCKMetadataKeyTitle)
         if let image = image, let imgUrl = URL(string: image) {
@@ -53,7 +64,25 @@ class ChromecastManager: NSObject, ObservableObject, GCKSessionManagerListener {
         builder.metadata = metadata
         
         let mediaInfo = builder.build()
-        session.remoteMediaClient?.loadMedia(mediaInfo)
+        
+        let requestOptions = GCKMediaLoadOptions()
+        requestOptions.autoplay = true
+        
+        print("[ChromecastManager] Sending loadMedia request...")
+        remoteClient.loadMedia(mediaInfo, with: requestOptions)
+    }
+    
+    // MARK: - Remote Media Client Listener
+    func remoteMediaClient(_ client: GCKRemoteMediaClient, didStartMediaSessionId mediaSessionId: Int) {
+        print("[ChromecastManager] Media Session Started (ID: \(mediaSessionId))")
+    }
+    
+    func remoteMediaClient(_ client: GCKRemoteMediaClient, didComplete loadRequest: GCKRequest) {
+        print("[ChromecastManager] Load Request Completed Successfully")
+    }
+    
+    func remoteMediaClient(_ client: GCKRemoteMediaClient, didFailToLoadMediaWithError error: Error) {
+        print("[ChromecastManager] Load Request FAILED: \(error.localizedDescription)")
     }
     
     // MARK: - Session Listener
