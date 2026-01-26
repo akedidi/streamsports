@@ -32,6 +32,7 @@ class PlayerManager: ObservableObject {
     init() {
         setupRemoteCommandCenter()
         setupAudioSession()
+        setupChromecastObserver()
     }
     
     func play(channel: SportsChannel, source: PlaybackSource = .event) {
@@ -158,5 +159,57 @@ class PlayerManager: ObservableObject {
         }
         
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nowPlayingInfo
+    }
+    
+    // MARK: - Chromecast Integration
+    private var cancellables = Set<AnyCancellable>()
+    
+    private func setupChromecastObserver() {
+        ChromecastManager.shared.$isConnected
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] isConnected in
+                if isConnected {
+                   // logic handled by castCurrentChannel called only once usually, 
+                   // but we might need to be careful not to loop if it toggles.
+                   // Actually castCurrentChannel checks currentChannel existence.
+                   self?.castCurrentChannel()
+                } else {
+                    // DISCONNECTED -> Resume Local Playback
+                    self?.resumeLocalPlayback()
+                }
+            }
+            .store(in: &cancellables)
+    }
+    
+    private func resumeLocalPlayback() {
+        guard let channel = currentChannel, !isPlaying else { return }
+        print("[PlayerManager] Resuming local playback for: \(channel.name)")
+        
+        // Simply re-call play logic
+        self.play(channel: channel, source: self.source)
+    }
+    
+    private func castCurrentChannel() {
+        guard let channel = currentChannel else { return }
+        
+        print("[PlayerManager] Preparing to cast: \(channel.name)")
+        
+        // Resolve the PROXY URL (same as web)
+        NetworkManager.shared.resolveStream(url: channel.url) { [weak self] resolvedUrl in
+            guard let urlStr = resolvedUrl, let url = URL(string: urlStr) else {
+                print("[PlayerManager] Failed to resolve proxy URL for casting")
+                return
+            }
+            
+            DispatchQueue.main.async {
+                print("[PlayerManager] Casting Proxy URL: \(url)")
+                ChromecastManager.shared.cast(url: url, title: channel.name, image: channel.image ?? channel.countryIMG)
+                
+                // Release local playback resources completely
+                self?.player?.replaceCurrentItem(with: nil)
+                self?.player = nil
+                self?.isPlaying = false
+            }
+        }
     }
 }

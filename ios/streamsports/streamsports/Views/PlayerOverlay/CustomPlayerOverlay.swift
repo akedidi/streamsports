@@ -59,12 +59,56 @@ struct CustomPlayerOverlay: View {
     let timer = Timer.publish(every: 0.5, on: .main, in: .common).autoconnect()
     
     var body: some View {
+
         GeometryReader { geometry in
             VStack {
                 Spacer() // Pushes overlay to bottom when mini
                 
                 if let channel = manager.currentChannel {
-                    ZStack(alignment: .top) {
+                    // CHECK FOR CHROMECAST CONNECTION
+                    Group {
+                        if ChromecastManager.shared.isConnected {
+                        // --- CASTING UI ---
+                        ZStack(alignment: .bottom) {
+                             if !manager.isMiniPlayer {
+                                 // Fullscreen Cast View
+                                 CastPlayerView(
+                                    channel: channel,
+                                    manager: manager,
+                                    minimizeAction: minimizePlayer
+                                 )
+                                 .transition(.move(edge: .bottom))
+                                 .gesture(
+                                     DragGesture().onEnded { value in
+                                         if value.translation.height > 100 {
+                                             minimizePlayer()
+                                         }
+                                     }
+                                 )
+                             }
+                             
+                             if manager.isMiniPlayer {
+                                 // Mini Cast Dock
+                                 MiniCastPlayerView(
+                                    channel: channel,
+                                    manager: manager,
+                                    maximizeAction: maximizePlayer
+                                 )
+                                 .padding(.bottom, 80) // Tab bar offset
+                                 .padding(.horizontal, 10)
+                                 .transition(.move(edge: .bottom))
+                             }
+                        }
+                         // Height & Position Logic for Cast Mode
+                        .frame(
+                             width: manager.isMiniPlayer ? geometry.size.width - 20 : geometry.size.width,
+                             height: manager.isMiniPlayer ? 60 : geometry.size.height
+                        )
+                        .offset(y: manager.isMiniPlayer ? -10 : 0) // Slight lift for dock style
+                        
+                    } else {
+                        // --- LOCAL PLAYER UI (Original) ---
+                        ZStack(alignment: .top) {
                         
                         // BACKGROUND (Fullscreen Only)
                         if !manager.isMiniPlayer {
@@ -174,7 +218,7 @@ struct CustomPlayerOverlay: View {
                                                     .foregroundColor(.white)
                                                     .fixedSize(horizontal: false, vertical: true)
                                                 
-                                                Text(channel.name)
+                                                Text(channel.channel_name ?? channel.name)
                                                     .font(.system(size: 14))
                                                     .foregroundColor(.gray)
                                                 
@@ -289,9 +333,12 @@ struct CustomPlayerOverlay: View {
                             .presentationDetents([.medium])
                             .presentationDragIndicator(.visible)
                     }
-                }
-            }
-        }
+                    
+                    } // END ELSE (Local Player)
+                    } // Close Group
+                } // Close if let
+            } // Close VStack
+        } // Close GeometryReader
         .onReceive(timer) { _ in
             guard let player = manager.player else { return }
             // Auto-sync status
@@ -322,6 +369,7 @@ struct CustomPlayerOverlay: View {
                 scheduleAutoHide()
             }
         }
+        .persistentSystemOverlays(manager.showControls ? .automatic : .hidden)
     }
     
     // Logic
@@ -365,14 +413,14 @@ struct CustomPlayerOverlay: View {
     }
     
     func maximizePlayer() {
-        withAnimation(.spring()) {
+        withAnimation(.spring(response: 0.28, dampingFraction: 0.75)) {
             manager.isMiniPlayer = false
         }
     }
     
     func minimizePlayer() {
         if isLandscapeMode { toggleFullscreen() }
-        withAnimation(.spring()) {
+        withAnimation(.spring(response: 0.28, dampingFraction: 0.75)) {
             manager.isMiniPlayer = true
         }
     }
@@ -503,13 +551,13 @@ struct PlayerControlsView: View {
                     Spacer()
                     
                     HStack(spacing: 20) {
-                        // Use ChromecastButton (visual only) with manual tap trigger
-                        ChromecastButton()
-                            .frame(width: 24, height: 24)
-                            .contentShape(Rectangle()) // Ensure tap target
-                            .onTapGesture {
-                                showCastSheet = true
-                            }
+                        // Manual Chromecast Button (Always Visible via wrapper)
+                        Button(action: {
+                            showCastSheet = true
+                        }) {
+                             ChromecastButton()
+                                .frame(width: 24, height: 24)
+                        }
 
                         
                         Button(action: {
@@ -532,6 +580,11 @@ struct PlayerControlsView: View {
             .padding(.bottom, 30)
         }
         .background(Color.black.opacity(0.4))
+        .onTapGesture {
+            withAnimation {
+                manager.showControls = false
+            }
+        }
     }
     
     func formatTime(_ seconds: Double) -> String {

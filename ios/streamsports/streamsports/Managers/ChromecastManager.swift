@@ -43,8 +43,8 @@ class ChromecastManager: NSObject, ObservableObject, GCKSessionManagerListener {
         }
         
         let builder = GCKMediaInformationBuilder(contentURL: url)
-        builder.streamType = .live
-        builder.contentType = "application/x-mpegurl"
+        builder.streamType = .buffered // Try buffered (often safer for generic HLS) or .live
+        builder.contentType = "application/vnd.apple.mpegurl"
         builder.metadata = metadata
         
         let mediaInfo = builder.build()
@@ -88,6 +88,10 @@ class ChromecastManager: NSObject, ObservableObject, GCKSessionManagerListener {
         DispatchQueue.main.async {
             self.devices = newDevices
         }
+    }
+    
+    func disconnect() {
+        GCKCastContext.sharedInstance().sessionManager.endSessionAndStopCasting(true)
     }
 }
 
