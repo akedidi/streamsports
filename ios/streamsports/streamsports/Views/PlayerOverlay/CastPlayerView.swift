@@ -11,10 +11,25 @@ struct CastPlayerView: View {
     
     var body: some View {
         ZStack {
-            // Background - Solid Black (opaque, no transparency)
+            // 1. Base Layer: Opaque Black (Hides underlying UI)
             Color.black
                 .edgesIgnoringSafeArea(.all)
             
+            // 2. Background Image Layer (Blurred)
+            let bgImageUrl = (manager.source == .event ? (channel.countryIMG ?? channel.image) : (channel.image ?? channel.countryIMG))
+            if let bgImg = bgImageUrl, let url = URL(string: bgImg) {
+                AsyncImage(url: url) { image in
+                    image.resizable()
+                         .aspectRatio(contentMode: .fill)
+                         .edgesIgnoringSafeArea(.all)
+                } placeholder: {
+                    Color.clear
+                }
+                .blur(radius: 40) // The "Effect Blur" requested
+                .overlay(Color.black.opacity(0.5)) // Dimming for readability
+            }
+            
+            // 3. Content
             VStack(spacing: 30) {
                 // Top Handle for visual cue (optional)
                 Capsule()
@@ -65,28 +80,27 @@ struct CastPlayerView: View {
                     }
                     
                     // 2. Event Name
+                    let mainTitle: String
                     if let home = channel.home_team, let away = channel.away_team, !home.isEmpty, !away.isEmpty {
-                        Text("\(home) vs \(away)")
-                            .font(.title3)
-                            .bold()
-                            .foregroundColor(.white)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal)
+                        mainTitle = "\(home) vs \(away)"
                     } else {
-                         // Fallback if teams aren't separate
-                         Text(channel.name)
-                            .font(.title3)
-                            .bold()
-                            .foregroundColor(.white)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal)
+                        mainTitle = channel.name
                     }
                     
-                    // 3. Channel Name
-                    Text(channel.channel_name ?? "")
-                        .font(.headline)
-                        .foregroundColor(.blue) // Make it distinct
-                        .padding(.top, 2)
+                    Text(mainTitle)
+                        .font(.title3)
+                        .bold()
+                        .foregroundColor(.white)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal)
+                    
+                    // 3. Channel Name (Only if different from Main Title)
+                    if let channelName = channel.channel_name, !channelName.isEmpty, channelName.lowercased() != mainTitle.lowercased() {
+                        Text(channelName)
+                            .font(.headline)
+                            .foregroundColor(.blue) // Make it distinct
+                            .padding(.top, 2)
+                    }
                     
                     HStack(spacing: 6) {
                         Text("Casting to")
@@ -110,7 +124,7 @@ struct CastPlayerView: View {
                 // Controls
                 VStack(spacing: 40) {
                     // Playback Controls (Simplified for Casting)
-                    // Playback Controls (Simplified for Casting)
+
                     if manager.isBuffering {
                          ProgressView()
                              .progressViewStyle(CircularProgressViewStyle(tint: .white))
