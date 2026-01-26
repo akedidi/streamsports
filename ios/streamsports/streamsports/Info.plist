@@ -7,6 +7,14 @@
 		<string>_googlecast._tcp</string>
 		<string>_CC1AD845._googlecast._tcp</string>
 	</array>
+    <key>NSLocalNetworkUsageDescription</key>
+    <string>StreamSports uses the local network to discover and connect to your Chromecast devices.</string>
+    <key>NSBluetoothAlwaysUsageDescription</key>
+    <string>StreamSports uses Bluetooth to discover Chromecast devices nearby.</string>
+    <key>NSBluetoothPeripheralUsageDescription</key>
+    <string>StreamSports uses Bluetooth to discover Chromecast devices nearby.</string>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>StreamSports uses the microphone for ultrasonic token exchange with Chromecast.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>audio</string>
