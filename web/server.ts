@@ -152,15 +152,11 @@ app.get('/api/proxy', async (req, res) => {
                         absoluteUrl = new URL(trimmed, baseUrl).toString();
                     }
 
-                    // Proxy Playlists AND Segments (if Chromecast)
-                    // Chromecast cannot handle headers/referer requirements of raw links, so we MUST proxy segments for it.
-                    if (absoluteUrl.includes('.m3u8') || isCast) {
-                        if (absoluteUrl.includes('.m3u8')) {
-                            console.log(`[Proxy] Rewriting Playlist: ${trimmed}`);
-                        } else {
-                            // Only log occasionally to avoid spam
-                            // console.log(`[Proxy] Rewriting Segment for Cast`);
-                        }
+                    // Proxy Playlists ONLY (Segments direct for speed)
+                    // REVERTED: User reported full proxying was too slow.
+                    // This puts the risk of idleReason=4 back on the table if provider checks Referer on segments.
+                    if (absoluteUrl.includes('.m3u8')) {
+                        console.log(`[Proxy] Rewriting Playlist: ${trimmed}`);
                         return `/api/proxy?url=${encodeURIComponent(absoluteUrl)}&referer=${encodeURIComponent(referer)}`;
                     } else {
                         // Direct link for segments (Save bandwidth / reduce server load for Browser/iOS)
