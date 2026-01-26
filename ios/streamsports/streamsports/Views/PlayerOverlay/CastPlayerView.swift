@@ -11,27 +11,9 @@ struct CastPlayerView: View {
     
     var body: some View {
         ZStack {
-            // Background - Blurred Image
-            GeometryReader { geo in
-                if let urlStr = (manager.source == .event ? (channel.countryIMG ?? channel.image) : (channel.image ?? channel.countryIMG)),
-                   let url = URL(string: urlStr) {
-                    AsyncImage(url: url) { phase in
-                        if let image = phase.image {
-                            image
-                                .resizable()
-                                .aspectRatio(contentMode: .fill)
-                                .frame(width: geo.size.width, height: geo.size.height)
-                                .blur(radius: 40)
-                                .overlay(Color.black.opacity(0.85))
-                        } else {
-                            Color.black
-                        }
-                    }
-                } else {
-                    Color.black // Fallback background
-                }
-            }
-            .edgesIgnoringSafeArea(.all)
+            // Background - Solid Black (opaque, no transparency)
+            Color.black
+                .edgesIgnoringSafeArea(.all)
             
             VStack(spacing: 30) {
                 // Top Handle for visual cue (optional)

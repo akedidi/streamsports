@@ -18,13 +18,17 @@ class ChromecastManager: NSObject, ObservableObject, GCKSessionManagerListener, 
         super.init()
         let options = GCKCastOptions(discoveryCriteria: GCKDiscoveryCriteria(applicationID: kGCKDefaultMediaReceiverApplicationID))
         options.physicalVolumeButtonsWillControlDeviceVolume = true
+        
+        // Prevent automatic session resumption on app launch
+        options.suspendSessionsWhenBackgrounded = true
+        
         GCKCastContext.setSharedInstanceWith(options)
         
         GCKCastContext.sharedInstance().sessionManager.add(self)
         GCKCastContext.sharedInstance().discoveryManager.add(self)
         GCKCastContext.sharedInstance().discoveryManager.startDiscovery()
         
-        // Restore State
+        // Only restore UI state, don't auto-reconnect
         if GCKCastContext.sharedInstance().sessionManager.hasConnectedCastSession() {
             self.isConnected = true
         }
@@ -39,19 +43,25 @@ class ChromecastManager: NSObject, ObservableObject, GCKSessionManagerListener, 
     }
     
     func cast(url: URL, title: String, image: String?) {
+        print("[ChromecastManager] ===== CAST ATTEMPT START =====")
+        print("[ChromecastManager] URL: \(url.absoluteString)")
+        print("[ChromecastManager] Title: \(title)")
+        
         guard let session = GCKCastContext.sharedInstance().sessionManager.currentCastSession else {
-            print("[ChromecastManager] Error: No active Cast Session found when trying to cast.")
+            print("[ChromecastManager] ❌ FATAL: No active Cast Session found")
             return
         }
+        print("[ChromecastManager] ✅ Session exists: \(session.device.friendlyName ?? "Unknown")")
         
         guard let remoteClient = session.remoteMediaClient else {
-             print("[ChromecastManager] Error: No RemoteMediaClient available.")
+             print("[ChromecastManager] ❌ FATAL: No RemoteMediaClient available")
              return
         }
+        print("[ChromecastManager] ✅ RemoteMediaClient exists")
         
         remoteClient.add(self) // Listen for media status
         
-        print("[ChromecastManager] Building MediaInfo for URL: \(url.absoluteString)")
+        print("[ChromecastManager] Building MediaInfo...")
         let metadata = GCKMediaMetadata(metadataType: .generic)
         metadata.setString(title, forKey: kGCKMetadataKeyTitle)
         if let image = image, let imgUrl = URL(string: image) {
@@ -59,28 +69,37 @@ class ChromecastManager: NSObject, ObservableObject, GCKSessionManagerListener, 
         }
         
         let builder = GCKMediaInformationBuilder(contentURL: url)
-        // builder.streamType = .buffered // Let SDK default this (Web doesn't set it)
         builder.contentType = "application/x-mpegURL"
         builder.metadata = metadata
         
         let mediaInfo = builder.build()
+        print("[ChromecastManager] MediaInfo built - ContentID: \(mediaInfo.contentID ?? "nil")")
+        print("[ChromecastManager] MediaInfo ContentType: \(mediaInfo.contentType ?? "nil")")
         
-        // Try WITHOUT LoadOptions first (closer to Web's simple LoadRequest)
-        print("[ChromecastManager] Sending loadMedia request...")
-        remoteClient.loadMedia(mediaInfo)
+        print("[ChromecastManager] 📤 Calling loadMedia()...")
+        let request = remoteClient.loadMedia(mediaInfo)
+        
+        print("[ChromecastManager] Request ID: \(request.requestID)")
+        print("[ChromecastManager] ===== CAST ATTEMPT END =====")
     }
     
     // MARK: - Remote Media Client Listener
     func remoteMediaClient(_ client: GCKRemoteMediaClient, didStartMediaSessionId mediaSessionId: Int) {
-        print("[ChromecastManager] Media Session Started (ID: \(mediaSessionId))")
+        print("[ChromecastManager] 🎬 Media Session Started (ID: \(mediaSessionId))")
     }
     
     func remoteMediaClient(_ client: GCKRemoteMediaClient, didComplete loadRequest: GCKRequest) {
-        print("[ChromecastManager] Load Request Completed Successfully")
+        print("[ChromecastManager] ✅ Load Request Completed (ID: \(loadRequest.requestID))")
     }
     
     func remoteMediaClient(_ client: GCKRemoteMediaClient, didFailToLoadMediaWithError error: Error) {
-        print("[ChromecastManager] Load Request FAILED: \(error.localizedDescription)")
+        print("[ChromecastManager] ❌ Load Request FAILED: \(error.localizedDescription)")
+        print("[ChromecastManager] Error details: \(error)")
+    }
+    
+    func remoteMediaClient(_ client: GCKRemoteMediaClient, didUpdate mediaStatus: GCKMediaStatus?) {
+        guard let status = mediaStatus else { return }
+        print("[ChromecastManager] 📊 Media Status Update: playerState=\(status.playerState.rawValue), idleReason=\(status.idleReason.rawValue)")
     }
     
     // MARK: - Session Listener

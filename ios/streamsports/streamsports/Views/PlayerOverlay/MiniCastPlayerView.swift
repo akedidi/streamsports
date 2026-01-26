@@ -10,8 +10,6 @@ struct MiniCastPlayerView: View {
     
     var body: some View {
         HStack(spacing: 12) {
-            Spacer()
-            
             // Thumbnail
             Group {
                 // Logic matching CastPlayerView to show Flag for Events
@@ -31,6 +29,7 @@ struct MiniCastPlayerView: View {
             }
             .frame(width: 40, height: 40)
             .cornerRadius(4)
+            .padding(.leading, 12)
             
             // Info
             VStack(alignment: .leading, spacing: 2) {
@@ -55,6 +54,8 @@ struct MiniCastPlayerView: View {
                 .foregroundColor(.green)
             }
             
+            Spacer()
+            
             // Controls
             HStack(spacing: 16) {
                 Button(action: {
@@ -73,8 +74,7 @@ struct MiniCastPlayerView: View {
                         .foregroundColor(.white)
                 }
             }
-            
-            Spacer()
+            .padding(.trailing, 16)
         }
         .frame(height: 60)
         .background(Color(white: 0.12)) // Slightly lighter than pure black

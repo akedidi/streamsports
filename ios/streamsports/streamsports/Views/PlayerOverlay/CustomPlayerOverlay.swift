@@ -100,9 +100,10 @@ struct CustomPlayerOverlay: View {
                         }
                          // Height & Position Logic for Cast Mode
                         .frame(
-                             width: manager.isMiniPlayer ? geometry.size.width - 20 : geometry.size.width,
+                             width: manager.isMiniPlayer ? nil : geometry.size.width,
                              height: manager.isMiniPlayer ? 60 : geometry.size.height
                         )
+                        .frame(maxWidth: .infinity) // Full width for mini player
                         .offset(y: manager.isMiniPlayer ? -10 : 0) // Slight lift for dock style
                         
                     } else {
