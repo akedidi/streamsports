@@ -72,6 +72,7 @@ class ChromecastManager: NSObject, ObservableObject, GCKSessionManagerListener, 
         
         remoteClient.add(self) // Listen for media status
         
+        
         print("[ChromecastManager] Building MediaInfo...")
         let metadata = GCKMediaMetadata(metadataType: .generic)
         metadata.setString(title, forKey: kGCKMetadataKeyTitle)
@@ -80,15 +81,25 @@ class ChromecastManager: NSObject, ObservableObject, GCKSessionManagerListener, 
         }
         
         let builder = GCKMediaInformationBuilder(contentURL: url)
+        builder.streamType = .buffered  // CRITICAL: Must be set like AnisFlix
         builder.contentType = "application/x-mpegURL"
         builder.metadata = metadata
+        
+        // CRITICAL: Set HLS segment format to TS (from AnisFlix)
+        builder.hlsSegmentFormat = .ts
         
         let mediaInfo = builder.build()
         print("[ChromecastManager] MediaInfo built - ContentID: \(mediaInfo.contentID ?? "nil")")
         print("[ChromecastManager] MediaInfo ContentType: \(mediaInfo.contentType ?? "nil")")
+        print("[ChromecastManager] MediaInfo StreamType: \(mediaInfo.streamType.rawValue)")
+        print("[ChromecastManager] MediaInfo HLS Format: \(mediaInfo.hlsSegmentFormat.rawValue)")
         
-        print("[ChromecastManager] 📤 Calling loadMedia()...")
-        let request = remoteClient.loadMedia(mediaInfo)
+        // CRITICAL: Use loadOptions like AnisFlix
+        let loadOptions = GCKMediaLoadOptions()
+        loadOptions.autoplay = true
+        
+        print("[ChromecastManager] 📤 Calling loadMedia() WITH loadOptions...")
+        let request = remoteClient.loadMedia(mediaInfo, with: loadOptions)
         
         print("[ChromecastManager] Request ID: \(request.requestID)")
         print("[ChromecastManager] ===== CAST ATTEMPT END =====")
