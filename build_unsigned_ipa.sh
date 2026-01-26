@@ -11,14 +11,14 @@ SIDESTORE_JSON="$WEB_PUBLIC_DIR/sidestore.json"
 GITHUB_BASE_URL="https://raw.githubusercontent.com/akedidi/streamsports/main"
 
 # 1. Get Version Info
-VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$PLIST_PATH")
-BUILD=$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$PLIST_PATH")
+VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$PLIST_PATH" 2>/dev/null || echo "1.0")
+BUILD=$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$PLIST_PATH" 2>/dev/null || echo "1")
 TODAY=$(date +%Y-%m-%d)
 
 echo "🚀 Building $APP_NAME v$VERSION ($BUILD)..."
 
 # 2. Build Archive
-xcodebuild -project "$PROJECT_DIR/streamsports.xcodeproj" \
+xcodebuild -workspace "$PROJECT_DIR/streamsports.xcworkspace" \
            -scheme "$SCHEME" \
            -configuration Release \
            -derivedDataPath "$PROJECT_DIR/build" \
@@ -53,7 +53,44 @@ DESCRIPTION="${1:-Minor update and bug fixes}"
 node -e "
 const fs = require('fs');
 const path = '$SIDESTORE_JSON';
-const data = JSON.parse(fs.readFileSync(path, 'utf8'));
+
+// Default structure if file doesn't exist
+let data = {
+    name: '$APP_NAME',
+    identifier: 'anis.com.$APP_NAME',
+    sourceURL: '$GITHUB_BASE_URL/web/public/sidestore.json',
+    apps: []
+};
+
+if (fs.existsSync(path)) {
+    try {
+        data = JSON.parse(fs.readFileSync(path, 'utf8'));
+    } catch (e) {
+        console.log('⚠️ Error reading existing JSON, starting fresh.');
+    }
+}
+
+// Ensure apps array exists
+if (!data.apps) data.apps = [];
+
+// Prepare the App Object (Update static metadata every time)
+const appMetadata = {
+    name: 'StreamSports',
+    bundleIdentifier: 'anis.com.streamsports',
+    developerName: 'Anis Kedidi',
+    localizedDescription: 'StreamSports est votre compagnon de streaming sportif ultime. Regardez vos événements préférés en direct.',
+    iconURL: '$GITHUB_BASE_URL/web/public/icon.png',
+};
+
+// Find existing app or create new one
+let app = data.apps.find(a => a.bundleIdentifier === appMetadata.bundleIdentifier);
+if (!app) {
+    app = { ...appMetadata, versions: [] };
+    data.apps.push(app);
+} else {
+    // Update metadata fields
+    Object.assign(app, appMetadata);
+}
 
 const newVersion = {
     version: '$VERSION',
@@ -64,11 +101,12 @@ const newVersion = {
     localizedDescription: '$DESCRIPTION'
 };
 
-// Assuming single app in array
-const app = data.apps[0];
-
 // Remove existing version entry if it exists (to update it)
-app.versions = app.versions.filter(v => v.version !== '$VERSION');
+if (app.versions) {
+    app.versions = app.versions.filter(v => v.version !== '$VERSION');
+} else {
+    app.versions = [];
+}
 
 // Add new version to the TOP
 app.versions.unshift(newVersion);

@@ -1,15 +1,24 @@
 {
-    "name": "StreamSports",
-    "identifier": "anis.com.streamsports",
-    "sourceURL": "https://raw.githubusercontent.com/akedidi/streamsports/main/web/public/sidestore.json",
-    "apps": [
+  "name": "StreamSports",
+  "identifier": "anis.com.streamsports",
+  "sourceURL": "https://raw.githubusercontent.com/akedidi/streamsports/main/web/public/sidestore.json",
+  "apps": [
+    {
+      "name": "StreamSports",
+      "bundleIdentifier": "anis.com.streamsports",
+      "developerName": "Anis Kedidi",
+      "localizedDescription": "StreamSports est votre compagnon de streaming sportif ultime. Regardez vos événements préférés en direct.",
+      "iconURL": "https://raw.githubusercontent.com/akedidi/streamsports/main/web/public/icon.png",
+      "versions": [
         {
-            "name": "StreamSports",
-            "bundleIdentifier": "anis.com.streamsports",
-            "developerName": "Anis Kedidi",
-            "localizedDescription": "StreamSports est votre compagnon de streaming sportif ultime. Regardez vos événements préférés en direct.",
-            "iconURL": "https://raw.githubusercontent.com/akedidi/streamsports/main/web/public/icon.png",
-            "versions": []
+          "version": "1.0",
+          "date": "2026-01-26",
+          "size": 7691525,
+          "downloadURL": "https://raw.githubusercontent.com/akedidi/streamsports/main/web/public/streamsports.ipa",
+          "minOSVersion": "16.0",
+          "localizedDescription": "Fix Cast & SideStore JSON"
         }
-    ]
+      ]
+    }
+  ]
 }
