@@ -1877,7 +1877,9 @@
                             mediaInfo.metadata.title = 'StreamSports Event';
 
                             const request = new chrome.cast.media.LoadRequest(mediaInfo);
-                            console.log('DEBUG: Sending LoadRequest to Chromecast...', request);
+                            console.log('DEBUG: Sending LoadRequest to Chromecast...');
+                            console.log('DEBUG: CAST URL ->', streamSrc); // Explicit Log
+                            console.log('DEBUG: Request Object ->', request);
 
                             try {
                                 await castSession.loadMedia(request);
