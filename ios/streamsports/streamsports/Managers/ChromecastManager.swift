@@ -38,7 +38,7 @@ class ChromecastManager: NSObject, ObservableObject, GCKSessionManagerListener, 
             // Trigger session restoration
             if let session = GCKCastContext.sharedInstance().sessionManager.currentCastSession {
                 print("[ChromecastManager] 🔗 Restoring session for device: \(session.device.friendlyName ?? "Unknown")")
-                sessionManager(GCKCastContext.sharedInstance().sessionManager, didResumeSession: session)
+                sessionManager(GCKCastContext.sharedInstance().sessionManager, didStart: session)
             }
         } else {
             print("[ChromecastManager] ℹ️ No existing Cast session found")
