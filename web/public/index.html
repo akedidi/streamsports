@@ -1934,34 +1934,49 @@
 
             // --- AirPlay ---
             async function toggleAirPlay() {
+                console.log('[AirPlay] Button clicked');
                 const video = document.getElementById('videoPlayer');
-                // Use Remote Playback API for AirPlay
+
+                // Try Remote Playback API first (Chrome, Edge)
                 if (video.remote) {
                     try {
+                        console.log('[AirPlay] Using Remote Playback API...');
                         await video.remote.prompt();
+                        console.log('[AirPlay] Started via Remote Playback API');
+                        return;
                     } catch (e) {
-                        if (e.name !== 'NotAllowedError') {
-                            // Show toast with instructions
-                            const toast = document.getElementById('errorToast');
-                            toast.innerText = '📺 AirPlay: Use Safari or enable in browser settings';
-                            toast.style.background = '#3b82f6';
-                            toast.style.display = 'block';
-                            setTimeout(() => {
-                                toast.style.display = 'none';
-                                toast.style.background = '#ef4444';
-                            }, 4000);
+                        console.warn('[AirPlay] Remote Playback failed:', e.message);
+                        if (e.name !== 'NotAllowedError' && e.name !== 'NotSupportedError') {
+                            showAirPlayToast('Remote playback not available');
+                            return;
                         }
                     }
-                } else {
-                    const toast = document.getElementById('errorToast');
-                    toast.innerText = '📺 AirPlay requires Safari browser';
-                    toast.style.background = '#3b82f6';
-                    toast.style.display = 'block';
-                    setTimeout(() => {
-                        toast.style.display = 'none';
-                        toast.style.background = '#ef4444';
-                    }, 4000);
                 }
+
+                // Safari-specific fallback: webkitShowPlaybackTargetPicker
+                if (video.webkitShowPlaybackTargetPicker) {
+                    try {
+                        console.log('[AirPlay] Using Safari webkitShowPlaybackTargetPicker...');
+                        video.webkitShowPlaybackTargetPicker();
+                        return;
+                    } catch (e) {
+                        console.warn('[AirPlay] Safari picker failed:', e.message);
+                    }
+                }
+
+                // No AirPlay support available
+                showAirPlayToast('AirPlay requires Safari browser on macOS/iOS');
+            }
+
+            function showAirPlayToast(message) {
+                const toast = document.getElementById('errorToast');
+                toast.innerText = '📺 ' + message;
+                toast.style.background = '#3b82f6';
+                toast.style.display = 'block';
+                setTimeout(() => {
+                    toast.style.display = 'none';
+                    toast.style.background = '#ef4444';
+                }, 4000);
             }
 
             // --- Picture-in-Picture ---
@@ -2099,42 +2114,6 @@
             }
 
             */
-            // --- AirPlay ---
-            async function toggleAirPlay() {
-                console.log('AirPlay button clicked');
-                const video = document.getElementById('videoPlayer');
-
-                // Use Remote Playback API for AirPlay
-                if (video.remote) {
-                    try {
-                        console.log('Prompting for AirPlay device...');
-                        await video.remote.prompt();
-                        console.log('AirPlay started');
-                    } catch (e) {
-                        console.error('AirPlay error:', e);
-                        if (e.name !== 'NotAllowedError') {
-                            const toast = document.getElementById('errorToast');
-                            toast.innerText = '📺 AirPlay: Use Safari browser for best support';
-                            toast.style.background = '#3b82f6';
-                            toast.style.display = 'block';
-                            setTimeout(() => {
-                                toast.style.display = 'none';
-                                toast.style.background = '#ef4444';
-                            }, 4000);
-                        }
-                    }
-                } else {
-                    console.warn('Remote Playback API not available');
-                    const toast = document.getElementById('errorToast');
-                    toast.innerText = '📺 AirPlay requires Safari browser';
-                    toast.style.background = '#3b82f6';
-                    toast.style.display = 'block';
-                    setTimeout(() => {
-                        toast.style.display = 'none';
-                        toast.style.background = '#ef4444';
-                    }, 4000);
-                }
-            }
 
             // --- Picture-in-Picture ---
             async function togglePiP() {
