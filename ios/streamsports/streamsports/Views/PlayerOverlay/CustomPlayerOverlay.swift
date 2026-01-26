@@ -308,7 +308,7 @@ struct CustomPlayerOverlay: View {
                                             let siblings = getSiblingChannels(for: channel)
                                             if !siblings.isEmpty {
                                                 VStack(alignment: .leading, spacing: 10) {
-                                                    Text("Other Servers")
+                                                    Text("Other Channels")
                                                         .font(.caption).bold()
                                                         .foregroundColor(.gray)
                                                         .padding(.horizontal)
