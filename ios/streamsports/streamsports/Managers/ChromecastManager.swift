@@ -59,17 +59,15 @@ class ChromecastManager: NSObject, ObservableObject, GCKSessionManagerListener, 
         }
         
         let builder = GCKMediaInformationBuilder(contentURL: url)
-        builder.streamType = .buffered // Match Web default
-        builder.contentType = "application/x-mpegURL" // Web uses this, iOS should too for consistency
+        // builder.streamType = .buffered // Let SDK default this (Web doesn't set it)
+        builder.contentType = "application/x-mpegURL"
         builder.metadata = metadata
         
         let mediaInfo = builder.build()
         
-        let requestOptions = GCKMediaLoadOptions()
-        requestOptions.autoplay = true
-        
+        // Try WITHOUT LoadOptions first (closer to Web's simple LoadRequest)
         print("[ChromecastManager] Sending loadMedia request...")
-        remoteClient.loadMedia(mediaInfo, with: requestOptions)
+        remoteClient.loadMedia(mediaInfo)
     }
     
     // MARK: - Remote Media Client Listener

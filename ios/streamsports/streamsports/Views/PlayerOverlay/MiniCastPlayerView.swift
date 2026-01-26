@@ -10,7 +10,9 @@ struct MiniCastPlayerView: View {
     
     var body: some View {
         HStack(spacing: 12) {
-             // Thumbnail
+            Spacer()
+            
+            // Thumbnail
             Group {
                 // Logic matching CastPlayerView to show Flag for Events
                 let imageUrl = (manager.source == .event ? (channel.countryIMG ?? channel.image) : (channel.image ?? channel.countryIMG))
@@ -29,7 +31,6 @@ struct MiniCastPlayerView: View {
             }
             .frame(width: 40, height: 40)
             .cornerRadius(4)
-            .padding(.leading, 12)
             
             // Info
             VStack(alignment: .leading, spacing: 2) {
@@ -54,8 +55,6 @@ struct MiniCastPlayerView: View {
                 .foregroundColor(.green)
             }
             
-            Spacer()
-            
             // Controls
             HStack(spacing: 16) {
                 Button(action: {
@@ -69,12 +68,13 @@ struct MiniCastPlayerView: View {
                 Button(action: {
                     castManager.disconnect()
                 }) {
-                    Image(systemName: "stop.fill") // Square stop
+                    Image(systemName: "stop.fill")
                         .font(.title3)
                         .foregroundColor(.white)
                 }
             }
-            .padding(.trailing, 16)
+            
+            Spacer()
         }
         .frame(height: 60)
         .background(Color(white: 0.12)) // Slightly lighter than pure black

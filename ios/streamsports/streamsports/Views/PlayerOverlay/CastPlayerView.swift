@@ -22,7 +22,7 @@ struct CastPlayerView: View {
                                 .aspectRatio(contentMode: .fill)
                                 .frame(width: geo.size.width, height: geo.size.height)
                                 .blur(radius: 40)
-                                .overlay(Color.black.opacity(0.6))
+                                .overlay(Color.black.opacity(0.85))
                         } else {
                             Color.black
                         }

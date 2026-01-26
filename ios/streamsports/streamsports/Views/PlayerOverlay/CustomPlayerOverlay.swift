@@ -95,7 +95,6 @@ struct CustomPlayerOverlay: View {
                                     maximizeAction: maximizePlayer
                                  )
                                  .padding(.bottom, 80) // Tab bar offset
-                                 .padding(.horizontal, 10)
                                  .transition(.move(edge: .bottom))
                              }
                         }
