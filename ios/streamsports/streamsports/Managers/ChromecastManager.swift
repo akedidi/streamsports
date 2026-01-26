@@ -23,6 +23,11 @@ class ChromecastManager: NSObject, ObservableObject, GCKSessionManagerListener {
         GCKCastContext.sharedInstance().sessionManager.add(self)
         GCKCastContext.sharedInstance().discoveryManager.add(self)
         GCKCastContext.sharedInstance().discoveryManager.startDiscovery()
+        
+        // Restore State
+        if GCKCastContext.sharedInstance().sessionManager.hasConnectedCastSession() {
+            self.isConnected = true
+        }
     }
     
     func startDiscovery() {
@@ -43,8 +48,8 @@ class ChromecastManager: NSObject, ObservableObject, GCKSessionManagerListener {
         }
         
         let builder = GCKMediaInformationBuilder(contentURL: url)
-        builder.streamType = .buffered // Try buffered (often safer for generic HLS) or .live
-        builder.contentType = "application/vnd.apple.mpegurl"
+        builder.streamType = .buffered // Match Web default
+        builder.contentType = "application/x-mpegURL" // Web uses this, iOS should too for consistency
         builder.metadata = metadata
         
         let mediaInfo = builder.build()
@@ -103,15 +108,21 @@ extension ChromecastManager: GCKDiscoveryManagerListener {}
 
 // SwiftUI Representable for the Cast Button (Visual Only)
 struct ChromecastButton: UIViewRepresentable {
+    var tintColor: UIColor = .white
+    
     func makeUIView(context: Context) -> GCKUICastButton {
         let btn = GCKUICastButton(frame: CGRect(x: 0, y: 0, width: 24, height: 24))
-        btn.tintColor = .white
+        btn.tintColor = tintColor
         // Disable user interaction so the SwiftUI wrapper can catch the tap
         // This effectively makes it just a visual icon managed by the SDK
         btn.isUserInteractionEnabled = false 
         return btn
     }
     
-    func updateUIView(_ uiView: GCKUICastButton, context: Context) {}
+    func updateUIView(_ uiView: GCKUICastButton, context: Context) {
+        if uiView.tintColor != tintColor {
+            uiView.tintColor = tintColor
+        }
+    }
 }
 
