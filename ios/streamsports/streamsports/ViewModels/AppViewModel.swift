@@ -206,8 +206,8 @@ class AppViewModel: ObservableObject {
         utcFormatter.dateFormat = "yyyy-MM-dd HH:mm"
         utcFormatter.timeZone = TimeZone(abbreviation: "UTC")
         
-        // SIMULATION: Jan 25, 2026 10:00 UTC
-        let simDate = utcFormatter.date(from: "2026-01-25 10:00") ?? Date()
+        // REAL DATE (No Simulation)
+        let simDate = Date()
 
         // Live
         self.liveEvents = allGroups
