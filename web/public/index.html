@@ -1822,93 +1822,130 @@
 
             // Initialize Cast API on window load
             window['__onGCastApiAvailable'] = function (isAvailable) {
-                console.log('Cast API Available:', isAvailable);
+                console.log('[chromecast] Cast API Available:', isAvailable);
                 if (isAvailable) {
                     try {
                         initializeCastApi();
                     } catch (e) {
-                        console.error('Failed to initialize Cast API:', e);
+                        console.error('[chromecast] Failed to initialize Cast API:', e);
                     }
                 }
             };
 
             function initializeCastApi() {
-                console.log('Initializing Cast API...');
+                console.log('[chromecast] Initializing Cast API...');
                 const options = {
                     receiverApplicationId: chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID,
                     autoJoinPolicy: chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED
                 };
-                cast.framework.CastContext.getInstance().setOptions(options);
-                console.log('Cast API initialized with default receiver');
+
+                // Add Session Listener
+                const context = cast.framework.CastContext.getInstance();
+                context.setOptions(options);
+
+                context.addEventListener(cast.framework.CastContextEventType.SESSION_STATE_CHANGED, (event) => {
+                    console.log(`[chromecast] Session State Changed: ${event.sessionState}`, event);
+
+                    switch (event.sessionState) {
+                        case cast.framework.SessionState.SESSION_STARTED:
+                        case cast.framework.SessionState.SESSION_RESUMED:
+                            console.log('[chromecast] Session Connected');
+                            castSession = context.getCurrentSession();
+                            break;
+                        case cast.framework.SessionState.SESSION_ENDED:
+                            console.log('[chromecast] Session Ended');
+                            castSession = null;
+                            break;
+                    }
+                });
+
+                console.log('[chromecast] Cast API initialized with default receiver');
             }
 
             window.openCastDialog = async function () {
-                console.log('DEBUG: openCastDialog called (Global)');
+                console.log('[chromecast] openCastDialog called (Global)');
 
                 try {
                     // Try Cast SDK first
                     if (typeof cast !== 'undefined' && cast.framework) {
-                        console.log('DEBUG: Using Cast SDK');
+                        console.log('[chromecast] Using Cast SDK');
                         const castContext = cast.framework.CastContext.getInstance();
-                        console.log('DEBUG: Requesting Cast Session...');
-                        await castContext.requestSession();
-                        console.log('DEBUG: Session request completed');
+                        console.log('[chromecast] Requesting Cast Session...');
+
+                        try {
+                            await castContext.requestSession();
+                            console.log('[chromecast] Session request completed (User selected device)');
+                        } catch (e) {
+                            if (e === 'cancel') {
+                                console.log('[chromecast] User cancelled session request');
+                            } else {
+                                console.error('[chromecast] Session request failed:', e);
+                            }
+                            return;
+                        }
 
                         castSession = castContext.getCurrentSession();
                         if (castSession) {
                             const video = document.getElementById('videoPlayer');
                             // Use RAW URL for Chromecast (Residential IP)
                             const streamSrc = window.rawStreamUrl || currentStreamUrl || video.src;
-                            console.log('DEBUG: Attempting to cast URL:', streamSrc);
+                            console.log('[chromecast] Attempting to cast URL:', streamSrc);
 
                             if (!streamSrc) {
-                                console.error('DEBUG: No stream URL available explicitly or in video.src');
+                                console.error('[chromecast] No stream URL available explicitly or in video.src');
                                 showCastInstructions();
                                 return;
                             }
 
                             // Verify if URL is valid (basic check)
                             if (!streamSrc.startsWith('http')) {
-                                console.warn('DEBUG: URL does not start with http(s), might fail on Chromecast:', streamSrc);
+                                console.warn('[chromecast] URL does not start with http(s), might fail on Chromecast:', streamSrc);
                             }
 
                             const mediaInfo = new chrome.cast.media.MediaInfo(streamSrc, 'application/x-mpegURL');
                             mediaInfo.metadata = new chrome.cast.media.GenericMediaMetadata();
-                            mediaInfo.metadata.title = 'StreamSports Event';
+                            mediaInfo.metadata.title = 'StreamSports Event'; // TODO: Pass real title
+
+                            // Advanced config (optional, but good for debugging)
+                            // mediaInfo.customData = { debug: true };
 
                             const request = new chrome.cast.media.LoadRequest(mediaInfo);
-                            console.log('DEBUG: Sending LoadRequest to Chromecast...');
-                            console.log('DEBUG: CAST URL ->', streamSrc); // Explicit Log
-                            console.log('DEBUG: Request Object ->', request);
+                            console.log('[chromecast] Sending LoadRequest to Chromecast...');
+                            console.log('[chromecast] Payload URL ->', streamSrc);
+                            console.log('[chromecast] Payload Request ->', request);
 
                             try {
                                 await castSession.loadMedia(request);
-                                console.log('DEBUG: Casting started successfully');
+                                console.log('[chromecast] LoadMedia SUCCESS! Playing on TV.');
                             } catch (loadError) {
-                                console.error('DEBUG: castSession.loadMedia failed', loadError);
-                                if (loadError.code) console.error('DEBUG: Error Code:', loadError.code);
-                                if (loadError.description) console.error('DEBUG: Error Description:', loadError.description);
+                                console.error('[chromecast] castSession.loadMedia FAILED', loadError);
+                                if (loadError.code) console.error('[chromecast] Error Code:', loadError.code);
+                                if (loadError.description) console.error('[chromecast] Error Description:', loadError.description);
+                                if (loadError.details) console.error('[chromecast] Error Details:', loadError.details);
+
                                 // Show toast
                                 const t = document.getElementById('errorToast');
                                 t.innerText = 'Chromecast Load Error: ' + (loadError.description || loadError.code || 'Unknown');
                                 t.style.display = 'block';
                                 setTimeout(() => t.style.display = 'none', 5000);
                             }
+                        } else {
+                            console.warn('[chromecast] No active session after requestSession success?');
                         }
                     } else {
-                        console.log('Cast SDK not available, trying Remote Playback API');
+                        console.warn('[chromecast] Cast SDK not available, trying Remote Playback API');
                         // Fallback: Remote Playback API
                         const video = document.getElementById('videoPlayer');
                         if (video.remote) {
                             await video.remote.prompt();
-                            console.log('Remote playback started');
+                            console.log('[chromecast] Remote playback started via Browser API');
                         } else {
-                            console.warn('No casting API available');
+                            console.error('[chromecast] No casting API available');
                             showCastInstructions();
                         }
                     }
                 } catch (e) {
-                    console.error('DEBUG: Cast error:', e);
+                    console.error('[chromecast] Unexpected Cast error:', e);
                     if (e.name !== 'NotAllowedError') {
                         showCastInstructions();
                     }
@@ -1917,7 +1954,7 @@
 
             function showCastInstructions() {
                 // Label suppressed by user request
-                console.log('DEBUG: Chromecast warning suppressed');
+                console.log('[chromecast] Chromecast warning suppressed');
             }
 
             // --- AirPlay ---
