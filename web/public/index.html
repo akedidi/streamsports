@@ -57,13 +57,15 @@
             console.log('[chromecast] openCastDialog called (Global Head)');
 
             try {
+                alert('DEBUG: openCastDialog START');
                 if (typeof cast !== 'undefined' && cast.framework) {
-                    console.log('[chromecast] Using Cast SDK');
+                    alert('DEBUG: Cast SDK Present. getting Instance...');
                     const castContext = cast.framework.CastContext.getInstance();
 
                     try {
-                        console.log('[chromecast] Requesting Cast Session...');
+                        alert('DEBUG: Requesting Session... (Watch for POPUP)');
                         await castContext.requestSession();
+                        alert('DEBUG: Session Request Success!');
                         console.log('[chromecast] Session request completed');
                     } catch (e) {
                         if (e !== 'cancel') console.error('[chromecast] Session request failed:', e);
@@ -965,9 +967,8 @@
                         </div>
 
                         <!-- Chromecast -->
-                        <button id="castBtn"
-                            onclick="console.log('DEBUG: Cast Button Clicked (Inline)'); openCastDialog()" title="Cast"
-                            style="
+                        <button id="castBtn" onclick="alert('DEBUG: Cast Button Clicked'); openCastDialog()"
+                            title="Cast" style="
                         width: 32px; height: 32px; border: none; background: transparent; z-index: 20;
                         color: white; cursor: pointer; display: flex; align-items: center; justify-content: center;
                         transition: transform 0.2s ease; position: relative;
