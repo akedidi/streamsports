@@ -1937,24 +1937,13 @@
                 console.log('[AirPlay] Button clicked');
                 const video = document.getElementById('videoPlayer');
 
-                // Try Remote Playback API first (Chrome, Edge)
-                if (video.remote) {
-                    try {
-                        console.log('[AirPlay] Using Remote Playback API...');
-                        await video.remote.prompt();
-                        console.log('[AirPlay] Started via Remote Playback API');
-                        return;
-                    } catch (e) {
-                        console.warn('[AirPlay] Remote Playback failed:', e.message);
-                        if (e.name !== 'NotAllowedError' && e.name !== 'NotSupportedError') {
-                            showAirPlayToast('Remote playback not available');
-                            return;
-                        }
-                    }
+                if (!video) {
+                    showAirPlayToast('No video playing');
+                    return;
                 }
 
-                // Safari-specific fallback: webkitShowPlaybackTargetPicker
-                if (video.webkitShowPlaybackTargetPicker) {
+                // Safari-specific: webkitShowPlaybackTargetPicker (native AirPlay)
+                if (typeof video.webkitShowPlaybackTargetPicker === 'function') {
                     try {
                         console.log('[AirPlay] Using Safari webkitShowPlaybackTargetPicker...');
                         video.webkitShowPlaybackTargetPicker();
@@ -1964,8 +1953,22 @@
                     }
                 }
 
-                // No AirPlay support available
-                showAirPlayToast('AirPlay requires Safari browser on macOS/iOS');
+                // Fallback: Remote Playback API (Chrome, Edge - for Chromecast-like devices)
+                if (video.remote) {
+                    try {
+                        console.log('[AirPlay] Using Remote Playback API...');
+                        await video.remote.prompt();
+                        console.log('[AirPlay] Started via Remote Playback API');
+                        return;
+                    } catch (e) {
+                        console.warn('[AirPlay] Remote Playback failed:', e.name, e.message);
+                        // Don't show toast for user cancel
+                        if (e.name === 'NotAllowedError') return;
+                    }
+                }
+
+                // No AirPlay/Remote Playback support
+                showAirPlayToast('AirPlay requires Safari on macOS/iOS');
             }
 
             function showAirPlayToast(message) {
