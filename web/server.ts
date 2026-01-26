@@ -14,6 +14,18 @@ app.use(express.static(publicPath));
 app.use(express.static(path.join(process.cwd(), 'public'))); // Fallback
 app.use(express.json());
 
+// Enable CORS for Chromecast
+app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Range');
+    if (req.method === 'OPTIONS') {
+        res.sendStatus(200);
+    } else {
+        next();
+    }
+});
+
 // Root Route - Serve API
 app.get('/', (req, res) => {
     res.sendFile(path.join(publicPath, 'index.html'), (err) => {
