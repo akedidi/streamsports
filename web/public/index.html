@@ -1129,12 +1129,10 @@
                 console.error('DEBUG: GLOBAL JS ERROR:', msg, 'at', line + ':' + col, error);
             };
 
-            // --- Simulated Date for Testing ---
+            // --- Date Helper ---
             function getCurrentDate() {
-                // TEMPORARY: Simulate Jan 25, 2026 10:00 UTC for testing stale API data
-                return new Date('2026-01-25T10:00:00Z');
-                // PRODUCTION: Uncomment line below and remove line above
-                // return new Date();
+                // Use real system time
+                return new Date();
             }
 
             // --- State Management ---

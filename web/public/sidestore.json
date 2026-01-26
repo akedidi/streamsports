@@ -12,11 +12,11 @@
       "versions": [
         {
           "version": "1.0",
-          "date": "2026-01-26",
-          "size": 7708124,
+          "date": "2026-01-27",
+          "size": 7710177,
           "downloadURL": "https://raw.githubusercontent.com/akedidi/streamsports/main/web/public/streamsports.ipa",
           "minOSVersion": "16.0",
-          "localizedDescription": "Turbo Animations (0.12s)"
+          "localizedDescription": "Fix: Country Flags & Names, Cast UI Refinements"
         }
       ]
     }
