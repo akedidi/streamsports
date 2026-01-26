@@ -325,12 +325,17 @@ struct CustomPlayerOverlay: View {
                                                                             AsyncImage(url: url) { ph in ph.resizable() } placeholder: { Color.clear }
                                                                                  .frame(width: 16, height: 12)
                                                                         }
-                                                                        
-                                                                        VStack(alignment: .leading, spacing: 0) {
+                                                                                                                                                VStack(alignment: .leading, spacing: 0) {
                                                                             Text(sibling.channel_name ?? "Server")
                                                                                 .font(.system(size: 12, weight: .medium))
                                                                                 .foregroundColor(.white)
-                                                                            if let lang = sibling.country {
+                                                                            
+                                                                            // Custom Country Name Logic
+                                                                            if let code = sibling.code, let name = CountryHelper.name(for: code) {
+                                                                                 Text(name)
+                                                                                     .font(.system(size: 9))
+                                                                                     .foregroundColor(.gray)
+                                                                            } else if let lang = sibling.country {
                                                                                 Text(lang)
                                                                                     .font(.system(size: 9))
                                                                                     .foregroundColor(.gray)

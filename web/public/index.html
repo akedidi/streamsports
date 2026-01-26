@@ -2224,11 +2224,21 @@
                     let icon = '';
                     if (ch.code) icon = `<img src="https://flagcdn.com/20x15/${ch.code.toLowerCase()}.png">`;
 
+                    let countryName = ch.country || '';
+                    if (ch.code) {
+                        try {
+                            const regionNames = new Intl.DisplayNames(['en'], { type: 'region' });
+                            countryName = regionNames.of(ch.code.toUpperCase());
+                        } catch (e) {
+                            console.warn('Could not resolving country name for:', ch.code);
+                        }
+                    }
+
                     btn.innerHTML = `
                         ${icon}
                         <div class="server-info">
                             <span class="server-name">${ch.channel_name || ch.name}</span>
-                            <span class="server-meta">${ch.country || ''}</span>
+                            <span class="server-meta">${countryName}</span>
                         </div>
                     `;
 
