@@ -53,10 +53,11 @@ class ChromecastManager: NSObject, ObservableObject, GCKSessionManagerListener, 
         GCKCastContext.sharedInstance().sessionManager.startSession(with: device)
     }
     
-    func cast(url: URL, title: String, image: String?) {
+    func cast(url: URL, title: String, image: String?, isLive: Bool = false) {
         print("[ChromecastManager] ===== CAST ATTEMPT START =====")
         print("[ChromecastManager] URL: \(url.absoluteString)")
         print("[ChromecastManager] Title: \(title)")
+        print("[ChromecastManager] isLive: \(isLive)")
         
         guard let session = GCKCastContext.sharedInstance().sessionManager.currentCastSession else {
             print("[ChromecastManager] ❌ FATAL: No active Cast Session found")
@@ -74,19 +75,18 @@ class ChromecastManager: NSObject, ObservableObject, GCKSessionManagerListener, 
         
         
         print("[ChromecastManager] Building MediaInfo...")
-        let metadata = GCKMediaMetadata(metadataType: .generic)
+        let metadata = GCKMediaMetadata(metadataType: .movie)
         metadata.setString(title, forKey: kGCKMetadataKeyTitle)
         if let image = image, let imgUrl = URL(string: image) {
             metadata.addImage(GCKImage(url: imgUrl, width: 480, height: 360))
         }
         
         let builder = GCKMediaInformationBuilder(contentURL: url)
-        builder.streamType = .buffered  // CRITICAL: Must be set like AnisFlix
+        builder.contentID = url.absoluteString // EXPLICITLY SET CONTENT ID (Matches Web's streamSrc)
+        builder.streamType = isLive ? .live : .buffered
         builder.contentType = "application/x-mpegURL"
         builder.metadata = metadata
-        
-        // CRITICAL: Set HLS segment format to TS (from AnisFlix)
-        builder.hlsSegmentFormat = .TS
+        builder.hlsSegmentFormat = .TS // Enforce TS format like AnisFlix
         
         let mediaInfo = builder.build()
         print("[ChromecastManager] MediaInfo built - ContentID: \(mediaInfo.contentID ?? "nil")")

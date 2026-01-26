@@ -68,6 +68,7 @@ struct ChannelResponse: Codable {
 struct StreamResponse: Codable {
     let success: Bool
     let streamUrl: String?
+    let rawUrl: String?
     let message: String?
 }
 

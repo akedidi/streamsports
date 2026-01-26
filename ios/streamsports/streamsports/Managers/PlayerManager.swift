@@ -74,7 +74,7 @@ class PlayerManager: ObservableObject {
         
         // 4. Local Playback Logic
         print("[PlayerManager] Resolving stream for: \(channel.url)")
-        NetworkManager.shared.resolveStream(url: channel.url) { [weak self] resolvedUrl in
+        NetworkManager.shared.resolveStream(url: channel.url) { [weak self] resolvedUrl, _ in
             guard let self = self else { return }
             
             DispatchQueue.main.async {
@@ -221,16 +221,18 @@ class PlayerManager: ObservableObject {
         }
         
         // Resolve the PROXY URL (same as web)
-        NetworkManager.shared.resolveStream(url: channel.url) { [weak self] resolvedUrl in
-            guard let urlStr = resolvedUrl, let url = URL(string: urlStr) else {
-                print("[PlayerManager] Failed to resolve proxy URL for casting")
+        NetworkManager.shared.resolveStream(url: channel.url) { [weak self] proxyUrl, rawUrl in
+            // Fallback to rawUrl if proxyUrl is missing.
+            // Priority: PROXY (Fixed to handle headers/segments) -> RAW (Backup)
+            guard let urlStr = proxyUrl ?? rawUrl, let url = URL(string: urlStr) else {
+                print("[PlayerManager] Failed to resolve URL for casting (Proxy: \(proxyUrl ?? "nil"), Raw: \(rawUrl ?? "nil"))")
                 DispatchQueue.main.async { self?.isBuffering = false }
                 return
             }
             
             DispatchQueue.main.async {
-                print("[PlayerManager] Casting Proxy URL: \(url)")
-                ChromecastManager.shared.cast(url: url, title: channel.name, image: channel.image ?? channel.countryIMG)
+                print("[PlayerManager] Casting URL: \(url) (isRaw: \(rawUrl != nil))")
+                ChromecastManager.shared.cast(url: url, title: channel.name, image: channel.image ?? channel.countryIMG, isLive: true)
                 
                 // Release local player resources completely
                 self?.player?.replaceCurrentItem(with: nil)

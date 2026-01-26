@@ -2,27 +2,86 @@ import SwiftUI
 import AVKit
 import Combine
 
-// Custom AVPlayerLayer wrapper to avoid native controls
-struct SimplePlayerView: UIViewRepresentable {
+// Enhanced Video Player with PiP Support (Custom Implementation for Manual Control)
+struct VideoPlayerView: UIViewRepresentable {
     let player: AVPlayer
     
-    func makeUIView(context: Context) -> UIView {
+    func makeUIView(context: Context) -> PlayerUIView {
         let view = PlayerUIView(player: player)
+        // Setup PiP Controller
+        context.coordinator.setupPiP(for: view.playerLayer)
         return view
     }
     
-    func updateUIView(_ uiView: UIView, context: Context) {
-        // No update needed for player reference usually, assuming consistent instance
+    func updateUIView(_ uiView: PlayerUIView, context: Context) {
+        // Ensure player is consistent if view updates
+        if uiView.playerLayer.player != player {
+            uiView.playerLayer.player = player
+        }
+    }
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+    
+    class Coordinator: NSObject, AVPictureInPictureControllerDelegate {
+        var parent: VideoPlayerView
+        var pipController: AVPictureInPictureController?
+        
+        init(_ parent: VideoPlayerView) {
+            self.parent = parent
+            super.init()
+            NotificationCenter.default.addObserver(self, selector: #selector(togglePiP), name: NSNotification.Name("TogglePiP"), object: nil)
+        }
+        
+        @objc func togglePiP() {
+            print("[PiP] Toggle Requested")
+            guard let pip = pipController else {
+                print("[PiP] Error: No Controller")
+                return
+            }
+            
+            if pip.isPictureInPictureActive {
+                pip.stopPictureInPicture()
+            } else {
+                print("[PiP] Starting PiP...")
+                pip.startPictureInPicture()
+            }
+        }
+        
+        func setupPiP(for layer: AVPlayerLayer) {
+            if AVPictureInPictureController.isPictureInPictureSupported() {
+                pipController = AVPictureInPictureController(playerLayer: layer)
+                pipController?.delegate = self
+                pipController?.canStartPictureInPictureAutomaticallyFromInline = true
+                print("[PiP] Controller Setup Success")
+            } else {
+                print("[PiP] Not Supported on this device")
+            }
+        }
+        
+        // Delegate methods
+        func pictureInPictureControllerDidStartPictureInPicture(_ pictureInPictureController: AVPictureInPictureController) {
+            print("[PiP] Did Start")
+        }
+        
+        func pictureInPictureControllerDidStopPictureInPicture(_ pictureInPictureController: AVPictureInPictureController) {
+            print("[PiP] Did Stop")
+        }
+        
+        func pictureInPictureController(_ pictureInPictureController: AVPictureInPictureController, restoreUserInterfaceForPictureInPictureStopWithCompletionHandler completionHandler: @escaping (Bool) -> Void) {
+            completionHandler(true)
+        }
     }
 }
 
 class PlayerUIView: UIView {
-    private let playerLayer = AVPlayerLayer()
+    let playerLayer = AVPlayerLayer()
     
     init(player: AVPlayer) {
         super.init(frame: .zero)
         playerLayer.player = player
-        playerLayer.videoGravity = .resizeAspect  // Allow aspect fit
+        playerLayer.videoGravity = .resizeAspect
         layer.addSublayer(playerLayer)
         backgroundColor = .black
     }
@@ -144,7 +203,7 @@ struct CustomPlayerOverlay: View {
                                 Color.black
                                 
                                 if let player = manager.player {
-                                    SimplePlayerView(player: player)
+                                    VideoPlayerView(player: player)
                                         .onTapGesture {
                                             if !manager.isMiniPlayer {
                                                 toggleControls() 
@@ -420,14 +479,14 @@ struct CustomPlayerOverlay: View {
     }
     
     func maximizePlayer() {
-        withAnimation(.spring(response: 0.28, dampingFraction: 0.75)) {
+        withAnimation(.spring(response: 0.18, dampingFraction: 0.75)) {
             manager.isMiniPlayer = false
         }
     }
     
     func minimizePlayer() {
         if isLandscapeMode { toggleFullscreen() }
-        withAnimation(.spring(response: 0.28, dampingFraction: 0.75)) {
+        withAnimation(.spring(response: 0.18, dampingFraction: 0.75)) {
             manager.isMiniPlayer = true
         }
     }
@@ -564,7 +623,8 @@ struct PlayerControlsView: View {
 
                         
                         Button(action: {
-                            // PiP Action (Placeholder for now as Logic needs AVPictureInPictureController)
+                            // Trigger PiP
+                             NotificationCenter.default.post(name: NSNotification.Name("TogglePiP"), object: nil)
                         }) {
                             Image(systemName: "pip.enter")
                                 .font(.system(size: 20))

@@ -108,12 +108,19 @@ app.get('/api/proxy', async (req, res) => {
     // console.log(`[Proxy] UA: ${userAgent} | Origin: ${origin}`);
 
     try {
+        const headers: any = {
+            // Try "VLC" disguise - Media Player UA
+            'User-Agent': 'VLC/3.0.18 LibVLC/3.0.18',
+            'Accept': '*/*'
+        };
+
+        // Important: Pass the referer if provided (critical for some providers)
+        if (referer) {
+            headers['Referer'] = referer;
+        }
+
         const response = await axios.get(targetUrl, {
-            headers: {
-                // Try "VLC" disguise - No Referer, Media Player UA
-                'User-Agent': 'VLC/3.0.18 LibVLC/3.0.18',
-                'Accept': '*/*'
-            },
+            headers,
             responseType: 'arraybuffer'
         });
 
@@ -145,11 +152,18 @@ app.get('/api/proxy', async (req, res) => {
                         absoluteUrl = new URL(trimmed, baseUrl).toString();
                     }
 
-                    if (absoluteUrl.includes('.m3u8')) {
-                        console.log(`[Proxy] Rewriting Playlist: ${trimmed}`);
+                    // Proxy Playlists AND Segments (if Chromecast)
+                    // Chromecast cannot handle headers/referer requirements of raw links, so we MUST proxy segments for it.
+                    if (absoluteUrl.includes('.m3u8') || isCast) {
+                        if (absoluteUrl.includes('.m3u8')) {
+                            console.log(`[Proxy] Rewriting Playlist: ${trimmed}`);
+                        } else {
+                            // Only log occasionally to avoid spam
+                            // console.log(`[Proxy] Rewriting Segment for Cast`);
+                        }
                         return `/api/proxy?url=${encodeURIComponent(absoluteUrl)}&referer=${encodeURIComponent(referer)}`;
                     } else {
-                        // Direct link for segments (Save bandwidth / reduce server load)
+                        // Direct link for segments (Save bandwidth / reduce server load for Browser/iOS)
                         return absoluteUrl;
                     }
                 }

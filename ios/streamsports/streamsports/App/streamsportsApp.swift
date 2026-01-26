@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import AVFoundation
 
 @main
 struct streamsportsApp: App {
@@ -24,6 +25,16 @@ class AppDelegate: NSObject, UIApplicationDelegate {
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
         // Initialize Chromecast SDK
         ChromecastManager.shared.initialize()
+        
+        // Configure Audio Session for Background Playback & PiP
+        do {
+            let session = AVAudioSession.sharedInstance()
+            try session.setCategory(.playback, mode: .moviePlayback, options: [.allowAirPlay, .allowBluetoothA2DP])
+            try session.setActive(true)
+        } catch {
+            print("❌ Failed to configure AudioSession: \(error)")
+        }
+        
         return true
     }
 

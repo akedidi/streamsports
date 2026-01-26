@@ -67,17 +67,25 @@ class NetworkManager: ObservableObject {
         }.resume()
     }
     
-    func resolveStream(url: String, completion: @escaping (String?) -> Void) {
+    func resolveStream(url: String, completion: @escaping (String?, String?) -> Void) {
         // We must properly encoding the URL parameter so that & and ? are escaped.
         // .urlQueryAllowed DOES NOT escape & and ?, which breaks the backend parsing.
         
-        var allowed = CharacterSet.urlQueryAllowed
-        allowed.remove(charactersIn: "&?=")
+        // Use URLComponents to properly encode the query parameter
+        // The backend expects 'url' to be the full target URL.
+        guard var components = URLComponents(string: "\(baseURL)/stream") else {
+             print("[NetworkManager] Invalid Base URL")
+             completion(nil, nil)
+             return
+        }
         
-        guard let encodedUrl = url.addingPercentEncoding(withAllowedCharacters: allowed),
-              let apiURL = URL(string: "\(baseURL)/stream?url=\(encodedUrl)") else {
-            print("[NetworkManager] Failed to encode/construct URL: \(url)")
-            completion(nil)
+        components.queryItems = [
+            URLQueryItem(name: "url", value: url)
+        ]
+        
+        guard let apiURL = components.url else {
+            print("[NetworkManager] Failed to construct URL components for: \(url)")
+            completion(nil, nil)
             return
         }
         
@@ -85,6 +93,7 @@ class NetworkManager: ObservableObject {
         URLSession.shared.dataTask(with: apiURL) { data, _, error in
             guard let data = data, error == nil else {
                 print("[NetworkManager] Request error: \(error?.localizedDescription ?? "empty")")
+                completion(nil, nil)
                 return
             }
             
@@ -95,24 +104,29 @@ class NetworkManager: ObservableObject {
             do {
                 let response = try JSONDecoder().decode(StreamResponse.self, from: data)
                 
+                let rawUrl = response.rawUrl
+                var finalProxyUrl: String? = nil
+                
                 if let streamPath = response.streamUrl {
                     print("[NetworkManager] Found path: \(streamPath)")
                     // streamPath is like "/api/proxy?..."
                     // We need to prepend the domain if it's relative
                     if streamPath.hasPrefix("http") {
-                        DispatchQueue.main.async { completion(streamPath) }
+                        finalProxyUrl = streamPath
                     } else {
                         // Construct full URL using the same host as baseURL (minus /api)
                         let host = "https://streamsports-wine.vercel.app"
-                        DispatchQueue.main.async { completion("\(host)\(streamPath)") }
+                        finalProxyUrl = "\(host)\(streamPath)"
                     }
                 } else {
                     print("[NetworkManager] No streamUrl in response")
-                    DispatchQueue.main.async { completion(nil) }
                 }
+                
+                DispatchQueue.main.async { completion(finalProxyUrl, rawUrl) }
+                
             } catch {
                 print("[NetworkManager] Decoding error (stream): \(error)")
-                DispatchQueue.main.async { completion(nil) }
+                DispatchQueue.main.async { completion(nil, nil) }
             }
         }.resume()
     }
