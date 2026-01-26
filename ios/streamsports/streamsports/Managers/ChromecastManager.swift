@@ -16,11 +16,13 @@ class ChromecastManager: NSObject, ObservableObject, GCKSessionManagerListener, 
     
     override init() {
         super.init()
+    }
+    
+    func initialize() {
+        print("[ChromecastManager] 🚀 Initializing Cast SDK...")
         let options = GCKCastOptions(discoveryCriteria: GCKDiscoveryCriteria(applicationID: kGCKDefaultMediaReceiverApplicationID))
         options.physicalVolumeButtonsWillControlDeviceVolume = true
-        
-        // Prevent automatic session resumption on app launch
-        options.suspendSessionsWhenBackgrounded = true
+        options.suspendSessionsWhenBackgrounded = false // Allow auto-reconnection
         
         GCKCastContext.setSharedInstanceWith(options)
         
@@ -28,9 +30,18 @@ class ChromecastManager: NSObject, ObservableObject, GCKSessionManagerListener, 
         GCKCastContext.sharedInstance().discoveryManager.add(self)
         GCKCastContext.sharedInstance().discoveryManager.startDiscovery()
         
-        // Only restore UI state, don't auto-reconnect
+        // Check for existing session on app launch
         if GCKCastContext.sharedInstance().sessionManager.hasConnectedCastSession() {
+            print("[ChromecastManager] 🔗 Found existing connected session on launch")
             self.isConnected = true
+            
+            // Trigger session restoration
+            if let session = GCKCastContext.sharedInstance().sessionManager.currentCastSession {
+                print("[ChromecastManager] 🔗 Restoring session for device: \(session.device.friendlyName ?? "Unknown")")
+                sessionManager(GCKCastContext.sharedInstance().sessionManager, didResumeSession: session)
+            }
+        } else {
+            print("[ChromecastManager] ℹ️ No existing Cast session found")
         }
     }
     
