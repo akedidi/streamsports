@@ -479,14 +479,14 @@ struct CustomPlayerOverlay: View {
     }
     
     func maximizePlayer() {
-        withAnimation(.spring(response: 0.18, dampingFraction: 0.75)) {
+        withAnimation(.spring(response: 0.12, dampingFraction: 0.75)) {
             manager.isMiniPlayer = false
         }
     }
     
     func minimizePlayer() {
         if isLandscapeMode { toggleFullscreen() }
-        withAnimation(.spring(response: 0.18, dampingFraction: 0.75)) {
+        withAnimation(.spring(response: 0.12, dampingFraction: 0.75)) {
             manager.isMiniPlayer = true
         }
     }
