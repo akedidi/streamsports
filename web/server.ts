@@ -77,15 +77,17 @@ app.get('/api/proxy', async (req, res) => {
     const referer = req.query.referer as string;
 
     if (!targetUrl || !referer) {
+        console.error('[Proxy] Missing targetUrl or referer');
         res.status(400).send('Missing url or referer');
         return;
     }
+
+    // console.log(`[Proxy] Incoming Request: ${targetUrl}`); // Verbose
 
     try {
         const response = await axios.get(targetUrl, {
             headers: {
                 // Try "VLC" disguise - No Referer, Media Player UA
-                // This often bypasses Referer checks AND works if IP blocked for "Browsers"
                 'User-Agent': 'VLC/3.0.18 LibVLC/3.0.18',
                 'Accept': '*/*'
             },
@@ -97,12 +99,15 @@ app.get('/api/proxy', async (req, res) => {
         const contentType = response.headers['content-type'];
         res.setHeader('Content-Type', contentType);
 
+        // console.log(`[Proxy] Response Content-Type: ${contentType}`);
+
         const isM3U8 = (contentType && (contentType.includes('mpegurl') || contentType.includes('application/x-mpegURL'))) ||
             targetUrl.includes('.m3u8') ||
             (Buffer.isBuffer(response.data) && response.data.slice(0, 7).toString() === '#EXTM3U') ||
             (typeof response.data === 'string' && response.data.startsWith('#EXTM3U'));
 
         if (isM3U8) {
+            console.log(`[Proxy] Detected M3U8 Playlist: ${targetUrl.split('/').pop()}`);
             let m3u8Content = response.data.toString('utf8');
             let baseUrl = targetUrl.substring(0, targetUrl.lastIndexOf('/') + 1);
 
@@ -118,6 +123,7 @@ app.get('/api/proxy', async (req, res) => {
                     }
 
                     if (absoluteUrl.includes('.m3u8')) {
+                        console.log(`[Proxy] Rewriting Playlist: ${trimmed}`);
                         return `/api/proxy?url=${encodeURIComponent(absoluteUrl)}&referer=${encodeURIComponent(referer)}`;
                     } else {
                         // Direct link for segments (Save bandwidth / reduce server load)
@@ -135,12 +141,14 @@ app.get('/api/proxy', async (req, res) => {
 
                         // Always proxy M3U8s (Audio Tracks, Variant Playlists)
                         if (absoluteUrl.includes('.m3u8')) {
+                            console.log(`[Proxy] Rewriting Sub-Playlist (URI): ${uri}`);
                             const proxyUri = `/api/proxy?url=${encodeURIComponent(absoluteUrl)}&referer=${encodeURIComponent(referer)}`;
                             return `URI="${proxyUri}"`;
                         }
 
                         // Always proxy Keys (often secured) AND Map (init segments for fMP4)
                         if (trimmed.startsWith('#EXT-X-KEY') || trimmed.startsWith('#EXT-X-MAP') || trimmed.startsWith('#EXT-X-MEDIA')) {
+                            console.log(`[Proxy] Rewriting Sensitive Tag (${trimmed.split(':')[0]}): ${uri}`);
                             const proxyUri = `/api/proxy?url=${encodeURIComponent(absoluteUrl)}&referer=${encodeURIComponent(referer)}`;
                             return `URI="${proxyUri}"`;
                         }
@@ -155,10 +163,13 @@ app.get('/api/proxy', async (req, res) => {
 
             res.send(rewrittenLines.join('\n'));
         } else {
+            // Binary content (segments, keys, etc.)
+            // console.log(`[Proxy] Serving Binary/Other Content (${response.data.length} bytes)`);
             res.send(response.data);
         }
 
     } catch (error: any) {
+        console.error(`[Proxy] Error fetching ${targetUrl}:`, error.message);
         if (error.response) {
             res.status(error.response.status).send(error.message);
         } else {
