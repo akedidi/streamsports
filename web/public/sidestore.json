@@ -13,10 +13,10 @@
         {
           "version": "1.0",
           "date": "2026-01-26",
-          "size": 7691525,
+          "size": 7699253,
           "downloadURL": "https://raw.githubusercontent.com/akedidi/streamsports/main/web/public/streamsports.ipa",
           "minOSVersion": "16.0",
-          "localizedDescription": "Fix Cast & SideStore JSON"
+          "localizedDescription": "Update iOS Target to 16.0 & Match Web Cast Config"
         }
       ]
     }
