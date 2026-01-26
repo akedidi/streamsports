@@ -10,6 +10,45 @@
     <link rel="icon" type="image/png" href="icon.png">
     <!-- Hls.js -->
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <!-- Cast SDK Init (Must be before SDK load) -->
+    <script>
+        window['__onGCastApiAvailable'] = function (isAvailable) {
+            console.log('[chromecast] Cast API Available:', isAvailable);
+            if (isAvailable) {
+                try {
+                    initializeCastApi();
+                } catch (e) {
+                    console.error('[chromecast] Failed to initialize Cast API:', e);
+                }
+            }
+        };
+
+        function initializeCastApi() {
+            console.log('[chromecast] Initializing Cast API...');
+            const options = {
+                receiverApplicationId: chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID,
+                autoJoinPolicy: chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED
+            };
+
+            const context = cast.framework.CastContext.getInstance();
+            context.setOptions(options);
+
+            context.addEventListener(cast.framework.CastContextEventType.SESSION_STATE_CHANGED, (event) => {
+                console.log(`[chromecast] Session State Changed: ${event.sessionState}`, event);
+                if (event.sessionState === cast.framework.SessionState.SESSION_STARTED ||
+                    event.sessionState === cast.framework.SessionState.SESSION_RESUMED) {
+                    window.castSession = context.getCurrentSession();
+                    console.log('[chromecast] Session Connected (Global set)');
+                } else if (event.sessionState === cast.framework.SessionState.SESSION_ENDED) {
+                    window.castSession = null;
+                    console.log('[chromecast] Session Ended (Global cleared)');
+                }
+            });
+
+            console.log('[chromecast] Cast API initialized with default receiver');
+        }
+    </script>
+
     <!-- Google Cast SDK -->
     <script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1"
         onload="console.log('DEBUG: Cast SDK script loaded')"
@@ -1818,49 +1857,12 @@
             }
 
             // --- Chromecast (Google Cast SDK) ---
-            let castSession = null;
+            // --- Chromecast (Google Cast SDK) ---
+            window['__onGCastApiAvailable'] = null; // Defined in HEAD
+            // castSession is managed globally in <head> script
+            // window.castSession updated by event listeners
 
-            // Initialize Cast API on window load
-            window['__onGCastApiAvailable'] = function (isAvailable) {
-                console.log('[chromecast] Cast API Available:', isAvailable);
-                if (isAvailable) {
-                    try {
-                        initializeCastApi();
-                    } catch (e) {
-                        console.error('[chromecast] Failed to initialize Cast API:', e);
-                    }
-                }
-            };
-
-            function initializeCastApi() {
-                console.log('[chromecast] Initializing Cast API...');
-                const options = {
-                    receiverApplicationId: chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID,
-                    autoJoinPolicy: chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED
-                };
-
-                // Add Session Listener
-                const context = cast.framework.CastContext.getInstance();
-                context.setOptions(options);
-
-                context.addEventListener(cast.framework.CastContextEventType.SESSION_STATE_CHANGED, (event) => {
-                    console.log(`[chromecast] Session State Changed: ${event.sessionState}`, event);
-
-                    switch (event.sessionState) {
-                        case cast.framework.SessionState.SESSION_STARTED:
-                        case cast.framework.SessionState.SESSION_RESUMED:
-                            console.log('[chromecast] Session Connected');
-                            castSession = context.getCurrentSession();
-                            break;
-                        case cast.framework.SessionState.SESSION_ENDED:
-                            console.log('[chromecast] Session Ended');
-                            castSession = null;
-                            break;
-                    }
-                });
-
-                console.log('[chromecast] Cast API initialized with default receiver');
-            }
+            // openCastDialog interacts with window.castSession below
 
             window.openCastDialog = async function () {
                 console.log('[chromecast] openCastDialog called (Global)');
