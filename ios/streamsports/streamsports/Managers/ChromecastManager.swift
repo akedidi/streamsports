@@ -126,12 +126,28 @@ class ChromecastManager: NSObject, ObservableObject, GCKSessionManagerListener, 
     
     // MARK: - Session Listener
     func sessionManager(_ sessionManager: GCKSessionManager, didStart session: GCKSession) {
+        print("[ChromecastManager] 🔗 Session Started")
+        withAnimation {
+            isConnected = true
+        }
+    }
+    
+    func sessionManager(_ sessionManager: GCKSessionManager, didResumeSession session: GCKSession) {
+        print("[ChromecastManager] 🔗 Session Resumed")
         withAnimation {
             isConnected = true
         }
     }
     
     func sessionManager(_ sessionManager: GCKSessionManager, didEnd session: GCKSession, withError error: Error?) {
+        print("[ChromecastManager] 🔌 Session Ended")
+        withAnimation {
+            isConnected = false
+        }
+    }
+    
+    func sessionManager(_ sessionManager: GCKSessionManager, didSuspend session: GCKSession, with reason: GCKConnectionSuspendReason) {
+        print("[ChromecastManager] ⏸ Session Suspended")
         withAnimation {
             isConnected = false
         }
