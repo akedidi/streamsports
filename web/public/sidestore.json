@@ -13,10 +13,10 @@
         {
           "version": "1.0",
           "date": "2026-01-27",
-          "size": 7710177,
+          "size": 7710196,
           "downloadURL": "https://raw.githubusercontent.com/akedidi/streamsports/main/web/public/streamsports.ipa",
           "minOSVersion": "16.0",
-          "localizedDescription": "Fix: Country Flags & Names, Cast UI Refinements"
+          "localizedDescription": "Display name changed to StreamSports"
         }
       ]
     }
