@@ -8,6 +8,14 @@ struct CastPlayerView: View {
     
     // UI State for transitions
     var minimizeAction: () -> Void
+    // Helper for title logic to avoid ViewBuilder errors
+    var mainTitle: String {
+        if let home = channel.home_team, let away = channel.away_team, !home.isEmpty, !away.isEmpty {
+            return "\(home) vs \(away)"
+        } else {
+            return channel.name
+        }
+    }
     
     var body: some View {
         ZStack {
@@ -80,12 +88,6 @@ struct CastPlayerView: View {
                     }
                     
                     // 2. Event Name
-                    let mainTitle: String
-                    if let home = channel.home_team, let away = channel.away_team, !home.isEmpty, !away.isEmpty {
-                        mainTitle = "\(home) vs \(away)"
-                    } else {
-                        mainTitle = channel.name
-                    }
                     
                     Text(mainTitle)
                         .font(.title3)
