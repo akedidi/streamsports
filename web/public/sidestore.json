@@ -13,10 +13,10 @@
         {
           "version": "1.0",
           "date": "2026-01-26",
-          "size": 7700356,
+          "size": 7708128,
           "downloadURL": "https://raw.githubusercontent.com/akedidi/streamsports/main/web/public/streamsports.ipa",
           "minOSVersion": "16.0",
-          "localizedDescription": "Fix URL Encoding & PiP Support"
+          "localizedDescription": "Fix: Cast Session Resume & UI Refinements"
         }
       ]
     }
