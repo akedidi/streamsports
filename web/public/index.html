@@ -57,9 +57,9 @@
             console.log('[chromecast] openCastDialog called (Global Head)');
 
             try {
-                alert('DEBUG: openCastDialog START');
+                // alert('DEBUG: openCastDialog START');
                 if (typeof cast !== 'undefined' && cast.framework) {
-                    alert('DEBUG: Cast SDK Present. getting Instance...');
+                    // alert('DEBUG: Cast SDK Present. getting Instance...');
                     const castContext = cast.framework.CastContext.getInstance();
 
                     // Force options if missed
@@ -74,15 +74,16 @@
 
                     // Check State
                     const state = castContext.getCastState();
-                    alert('DEBUG: Current Cast State: ' + state);
+                    console.log('DEBUG: Current Cast State: ' + state);
 
                     if (state === 'NO_DEVICES_AVAILABLE') {
-                        alert('ERROR: Chrome says NO DEVICES FOUND. Are you on the same Wifi?');
+                        // alert('ERROR: Chrome says NO DEVICES FOUND. Are you on the same Wifi?');
+                        console.warn('Chrome says NO DEVICES FOUND');
                         return;
                     }
 
                     try {
-                        alert('DEBUG: Requesting Session... (Watch for POPUP)');
+                        console.log('DEBUG: Requesting Session... (Watch for POPUP)');
 
                         // Timeout race to fix hanging
                         const sessionPromise = castContext.requestSession();
@@ -91,14 +92,13 @@
                         );
 
                         await Promise.race([sessionPromise, timeoutPromise]);
-                        alert('DEBUG: Session Request Success!');
+                        console.log('DEBUG: Session Request Success!');
                         console.log('[chromecast] Session request completed');
                     } catch (e) {
                         if (e === 'cancel' || (e.code && e.code === 'cancel')) {
-                            alert('DEBUG: Session Cancelled by User');
+                            console.log('DEBUG: Session Cancelled by User');
                         } else {
-                            alert('DEBUG: Session Request FAILED: ' + e);
-                            console.error('[chromecast] Session request failed:', e);
+                            console.error('DEBUG: Session Request FAILED: ' + e);
                         }
                         return;
                     }
@@ -998,8 +998,7 @@
                         </div>
 
                         <!-- Chromecast -->
-                        <button id="castBtn" onclick="alert('DEBUG: Cast Button Clicked'); openCastDialog()"
-                            title="Cast" style="
+                        <button id="castBtn" onclick="openCastDialog()" title="Cast" style="
                         width: 32px; height: 32px; border: none; background: transparent; z-index: 20;
                         color: white; cursor: pointer; display: flex; align-items: center; justify-content: center;
                         transition: transform 0.2s ease; position: relative;
