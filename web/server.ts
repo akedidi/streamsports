@@ -131,29 +131,27 @@ app.get('/api/proxy', async (req, res) => {
                     }
                 }
 
-                // Case 2: Tag with URI="..." (Encryption Keys, Audio Tracks, Subtitles)
+                // Case 2: Tag with URI="..." (Encryption Keys, Audio Tracks, Subtitles, Init Segments)
                 if (trimmed.startsWith('#') && trimmed.includes('URI=')) {
-                    return trimmed.replace(/URI="([^"]+)"/g, (match, uri) => {
+                    return trimmed.replace(/URI=["']([^"']+)["']/g, (match, uri) => {
                         let absoluteUrl = uri;
                         if (!uri.startsWith('http')) {
                             absoluteUrl = new URL(uri, baseUrl).toString();
                         }
 
-                        // Always proxy M3U8s (Audio Tracks, Variant Playlists)
-                        if (absoluteUrl.includes('.m3u8')) {
-                            console.log(`[Proxy] Rewriting Sub-Playlist (URI): ${uri}`);
+                        // Check tag type to decide if we MUST proxy
+                        const isSensitiveTag = trimmed.startsWith('#EXT-X-KEY') ||
+                            trimmed.startsWith('#EXT-X-MAP') ||
+                            trimmed.startsWith('#EXT-X-MEDIA');
+
+                        // Always proxy M3U8s (Sub-playlists), Keys, Maps (Init Segments), and Media (Subtitles)
+                        if (absoluteUrl.includes('.m3u8') || isSensitiveTag) {
+                            console.log(`[Proxy] Rewriting Tag URI (${trimmed.split(':')[0]}): ${uri}`);
                             const proxyUri = `/api/proxy?url=${encodeURIComponent(absoluteUrl)}&referer=${encodeURIComponent(referer)}`;
                             return `URI="${proxyUri}"`;
                         }
 
-                        // Always proxy Keys (often secured) AND Map (init segments for fMP4)
-                        if (trimmed.startsWith('#EXT-X-KEY') || trimmed.startsWith('#EXT-X-MAP') || trimmed.startsWith('#EXT-X-MEDIA')) {
-                            console.log(`[Proxy] Rewriting Sensitive Tag (${trimmed.split(':')[0]}): ${uri}`);
-                            const proxyUri = `/api/proxy?url=${encodeURIComponent(absoluteUrl)}&referer=${encodeURIComponent(referer)}`;
-                            return `URI="${proxyUri}"`;
-                        }
-
-                        // Segments inside tags? (Rare, but if so, direct access usually fine)
+                        // Standard segments inside tags (rare)? Direct link
                         return `URI="${absoluteUrl}"`;
                     });
                 }
