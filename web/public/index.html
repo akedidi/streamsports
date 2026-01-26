@@ -62,13 +62,44 @@
                     alert('DEBUG: Cast SDK Present. getting Instance...');
                     const castContext = cast.framework.CastContext.getInstance();
 
+                    // Force options if missed
+                    try {
+                        castContext.setOptions({
+                            receiverApplicationId: 'CC1AD845',
+                            autoJoinPolicy: chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED
+                        });
+                    } catch (optErr) {
+                        console.warn('SetOptions check:', optErr);
+                    }
+
+                    // Check State
+                    const state = castContext.getCastState();
+                    alert('DEBUG: Current Cast State: ' + state);
+
+                    if (state === 'NO_DEVICES_AVAILABLE') {
+                        alert('ERROR: Chrome says NO DEVICES FOUND. Are you on the same Wifi?');
+                        return;
+                    }
+
                     try {
                         alert('DEBUG: Requesting Session... (Watch for POPUP)');
-                        await castContext.requestSession();
+
+                        // Timeout race to fix hanging
+                        const sessionPromise = castContext.requestSession();
+                        const timeoutPromise = new Promise((_, reject) =>
+                            setTimeout(() => reject(new Error('TIMEOUT: Popup ignored or blocked')), 10000)
+                        );
+
+                        await Promise.race([sessionPromise, timeoutPromise]);
                         alert('DEBUG: Session Request Success!');
                         console.log('[chromecast] Session request completed');
                     } catch (e) {
-                        if (e !== 'cancel') console.error('[chromecast] Session request failed:', e);
+                        if (e === 'cancel' || (e.code && e.code === 'cancel')) {
+                            alert('DEBUG: Session Cancelled by User');
+                        } else {
+                            alert('DEBUG: Session Request FAILED: ' + e);
+                            console.error('[chromecast] Session request failed:', e);
+                        }
                         return;
                     }
 
