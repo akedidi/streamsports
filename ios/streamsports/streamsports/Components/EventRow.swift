@@ -77,46 +77,49 @@ struct EventRow: View {
                         print("[EventRow] Clicked channel: \(channel.name) (ID: \(channel.id))")
                         PlayerManager.shared.play(channel: channel)
                     }) {
-                        HStack {
-                            // Status Badge (Left of Flag) - using lookup
-                            let status = getChannelStatus(channel)
-                            Circle()
-                                .fill(status == "online" ? Color.green : Color.gray)
-                                .frame(width: 8, height: 8)
-                                .overlay(
-                                    Circle().stroke(Color.black.opacity(0.5), lineWidth: 1)
-                                )
-                            
-                            if let code = channel.code?.lowercased(), let url = URL(string: "https://flagcdn.com/w40/\(code).png") {
-                                AsyncImage(url: url) { ph in ph.resizable() } placeholder: { Color.clear }
-                                    .frame(width: 20, height: 15)
-                            }
-                            
-                            Text(channel.channel_name ?? channel.name)
-                                .font(.subheadline)
-                                .foregroundColor(.white)
-                            Spacer()
-                            Text(channel.code ?? "")
-                                .font(.caption2)
-                                .foregroundColor(.gray)
-                        }
-                        .padding(.leading, 60)
-                        .padding(.vertical, 8)
-                        
-                        // EPG for expanded item
-                        if let program = viewModel.getCurrentProgram(for: channel.name) {
-                            HStack(spacing: 4) {
-                                Text("\(viewModel.formatTime(program.start)) -")
-                                    .font(.caption2)
-                                    .foregroundColor(.blue)
-                                Text(program.title)
+                        VStack(alignment: .leading, spacing: 0) {
+                            HStack {
+                                // Status Badge (Left of Flag) - using lookup
+                                let status = getChannelStatus(channel)
+                                Circle()
+                                    .fill(status == "online" ? Color.green : Color.gray)
+                                    .frame(width: 8, height: 8)
+                                    .overlay(
+                                        Circle().stroke(Color.black.opacity(0.5), lineWidth: 1)
+                                    )
+                                
+                                if let code = channel.code?.lowercased(), let url = URL(string: "https://flagcdn.com/w40/\(code).png") {
+                                    AsyncImage(url: url) { ph in ph.resizable() } placeholder: { Color.clear }
+                                        .frame(width: 20, height: 15)
+                                }
+                                
+                                Text(channel.channel_name ?? channel.name)
+                                    .font(.subheadline)
+                                    .foregroundColor(.white)
+                                Spacer()
+                                Text(channel.code ?? "")
                                     .font(.caption2)
                                     .foregroundColor(.gray)
-                                    .lineLimit(1)
                             }
                             .padding(.leading, 60)
-                            .padding(.bottom, 4)
+                            .padding(.vertical, 8)
+                            
+                            // EPG for expanded item
+                            if let program = viewModel.getCurrentProgram(for: channel.name) {
+                                HStack(spacing: 4) {
+                                    Text("\(viewModel.formatTime(program.start)) -")
+                                        .font(.caption2)
+                                        .foregroundColor(.blue)
+                                    Text(program.title)
+                                        .font(.caption2)
+                                        .foregroundColor(.gray)
+                                        .lineLimit(1)
+                                }
+                                .padding(.leading, 60)
+                                .padding(.bottom, 4)
+                            }
                         }
+                        .contentShape(Rectangle()) // Make entire button area clickable
                     }
                     .buttonStyle(PlainButtonStyle()) // Fix for click targets in List
                     Divider().background(Color.gray.opacity(0.2)).padding(.leading, 60)

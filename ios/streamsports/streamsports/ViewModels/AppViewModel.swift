@@ -206,6 +206,9 @@ class AppViewModel: ObservableObject {
         utcFormatter.dateFormat = "yyyy-MM-dd HH:mm"
         utcFormatter.timeZone = TimeZone(abbreviation: "UTC")
         
+        // SIMULATION: Jan 25, 2026 10:00 UTC
+        let simDate = utcFormatter.date(from: "2026-01-25 10:00") ?? Date()
+
         // Live
         self.liveEvents = allGroups
             .filter { group in
@@ -215,7 +218,7 @@ class AppViewModel: ObservableObject {
                 if let endStr = group.displayItem.end,
                    let endDate = utcFormatter.date(from: endStr) {
                     // Hide immediately if current time is past end time
-                    if Date() > endDate {
+                    if simDate > endDate {
                         return false
                     }
                 }
@@ -232,7 +235,7 @@ class AppViewModel: ObservableObject {
                 // Only show events that haven't started yet
                 if let startStr = group.displayItem.start,
                    let startDate = utcFormatter.date(from: startStr) {
-                    if Date() > startDate { return false }
+                    if simDate > startDate { return false }
                 }
                 
                 return true

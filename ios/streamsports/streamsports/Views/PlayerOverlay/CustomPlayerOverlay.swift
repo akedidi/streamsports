@@ -156,6 +156,13 @@ struct CustomPlayerOverlay: View {
                                     ProgressView().progressViewStyle(CircularProgressViewStyle(tint: .white))
                                 }
                                 
+                                // Persistent Buffering Spinner (Always visible if buffering)
+                                if manager.isBuffering && manager.player != nil {
+                                    ProgressView()
+                                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                        // User prefers standard size (removed scaleEffect 2.0)
+                                }
+                                
                                 // CONTROLS OVERLAY
                                 if !manager.isMiniPlayer {
                                     // Layer for tap detection to toggle controls
@@ -507,12 +514,8 @@ struct PlayerControlsView: View {
             
             // CENTER CONTROLS
             HStack(spacing: 50) {
-                if manager.isBuffering {
-                    ProgressView()
-                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                        .scaleEffect(2.0)
-                } else {
-                    Button(action: {
+                if !manager.isBuffering {
+                     Button(action: {
                         manager.seek(to: currentTime - 10)
                     }) {
                        Image(systemName: "gobackward.10").font(.system(size: 28)).foregroundColor(.white)

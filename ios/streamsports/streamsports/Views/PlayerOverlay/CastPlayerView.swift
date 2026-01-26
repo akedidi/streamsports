@@ -53,32 +53,58 @@ struct CastPlayerView: View {
                         Color(white: 0.1)
                             .overlay(ProgressView().tint(.white))
                     }
-                    .frame(width: 220, height: 220)
+                    // Smaller size as requested (was 220)
+                    .frame(width: 120, height: 90)
                     .background(Color.clear)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                    .shadow(color: .black.opacity(0.5), radius: 20, x: 0, y: 10)
+                    // Modern shadow and slight rounding
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .shadow(color: .black.opacity(0.6), radius: 15, x: 0, y: 8)
+                    .padding(.bottom, 20)
                 } else {
                      // Default Icon
                     Image(systemName: "tv")
-                        .font(.system(size: 80))
-                        .foregroundColor(.white.opacity(0.5))
-                        .frame(width: 220, height: 220)
+                        .font(.system(size: 50))
+                        .foregroundColor(.white.opacity(0.7))
+                        .frame(width: 100, height: 100)
                         .background(Color.white.opacity(0.1))
-                        .cornerRadius(12)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12)
-                                .stroke(Color.white.opacity(0.1), lineWidth: 1)
-                        )
+                        .clipShape(Circle())
+                        .padding(.bottom, 20)
                 }
                 
                 // Title & Status
                 VStack(spacing: 8) {
-                    Text(channel.name)
-                        .font(.title2)
-                        .bold()
-                        .foregroundColor(.white)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal)
+                    // 1. Tournament
+                    if let tour = channel.tournament {
+                        Text(tour.uppercased())
+                            .font(.caption)
+                            .fontWeight(.bold)
+                            .foregroundColor(.gray)
+                            .tracking(1)
+                    }
+                    
+                    // 2. Event Name
+                    if let home = channel.home_team, let away = channel.away_team, !home.isEmpty, !away.isEmpty {
+                        Text("\(home) vs \(away)")
+                            .font(.title3)
+                            .bold()
+                            .foregroundColor(.white)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal)
+                    } else {
+                         // Fallback if teams aren't separate
+                         Text(channel.name)
+                            .font(.title3)
+                            .bold()
+                            .foregroundColor(.white)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal)
+                    }
+                    
+                    // 3. Channel Name
+                    Text(channel.channel_name ?? "")
+                        .font(.headline)
+                        .foregroundColor(.blue) // Make it distinct
+                        .padding(.top, 2)
                     
                     HStack(spacing: 6) {
                         Text("Casting to")
@@ -102,32 +128,40 @@ struct CastPlayerView: View {
                 // Controls
                 VStack(spacing: 40) {
                     // Playback Controls (Simplified for Casting)
-                    HStack(spacing: 50) {
-                        // Rewind 10 (Simulated or supported?) - Keeping it visual for now
-                        Button(action: {
-                            // Implement seek backward logic for Cast if available
-                        }) {
-                            Image(systemName: "gobackward.10")
-                                .font(.system(size: 30))
-                                .foregroundColor(.gray) // Dimmed as complex seek might vary
-                        }
-                        
-                        // Play/Pause (Visual toggle mostly, real sync needs Cast Channel)
-                        Button(action: {
-                            // Toggle cast playback logic here
-                        }) {
-                           Image(systemName: "pause.circle.fill")
-                                .font(.system(size: 70))
-                                .foregroundColor(.white)
-                        }
-                        
-                        // Forward 10
-                         Button(action: {
-                            // Implement seek forward logic for Cast if available
-                        }) {
-                            Image(systemName: "goforward.10")
-                                .font(.system(size: 30))
-                                .foregroundColor(.gray)
+                    // Playback Controls (Simplified for Casting)
+                    if manager.isBuffering {
+                         ProgressView()
+                             .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                             .scaleEffect(1.5)
+                             .padding(.bottom, 20)
+                    } else {
+                        HStack(spacing: 50) {
+                            // Rewind 10 (Simulated or supported?) - Keeping it visual for now
+                            Button(action: {
+                                // Implement seek backward logic for Cast if available
+                            }) {
+                                Image(systemName: "gobackward.10")
+                                    .font(.system(size: 30))
+                                    .foregroundColor(.gray) // Dimmed as complex seek might vary
+                            }
+                            
+                            // Play/Pause (Visual toggle mostly, real sync needs Cast Channel)
+                            Button(action: {
+                                // Toggle cast playback logic here
+                            }) {
+                               Image(systemName: "pause.circle.fill")
+                                    .font(.system(size: 70))
+                                    .foregroundColor(.white)
+                            }
+                            
+                            // Forward 10
+                             Button(action: {
+                                // Implement seek forward logic for Cast if available
+                            }) {
+                                Image(systemName: "goforward.10")
+                                    .font(.system(size: 30))
+                                    .foregroundColor(.gray)
+                            }
                         }
                     }
                     

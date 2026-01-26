@@ -12,13 +12,10 @@ struct MiniCastPlayerView: View {
         HStack(spacing: 12) {
              // Thumbnail
             Group {
-                if let img = channel.image, let url = URL(string: img) {
-                    AsyncImage(url: url) { image in
-                        image.resizable().aspectRatio(contentMode: .fill)
-                    } placeholder: {
-                        Color(white: 0.2)
-                    }
-                } else if let img = channel.countryIMG, let url = URL(string: img) {
+                // Logic matching CastPlayerView to show Flag for Events
+                let imageUrl = (manager.source == .event ? (channel.countryIMG ?? channel.image) : (channel.image ?? channel.countryIMG))
+                
+                if let img = imageUrl, let url = URL(string: img) {
                     AsyncImage(url: url) { image in
                         image.resizable().aspectRatio(contentMode: .fit)
                     } placeholder: {
@@ -34,12 +31,15 @@ struct MiniCastPlayerView: View {
             .cornerRadius(4)
             .padding(.leading, 12)
             
+            Spacer()
+            
             // Info
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .center, spacing: 2) {
                 Text(channel.name)
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundColor(.white)
                     .lineLimit(1)
+                    .multilineTextAlignment(.center)
                 
                 HStack(spacing: 4) {
                     Image(systemName: "airplayvideo") // or tv

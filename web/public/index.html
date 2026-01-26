@@ -964,6 +964,15 @@
             window.onerror = function (msg, url, line, col, error) {
                 console.error('DEBUG: GLOBAL JS ERROR:', msg, 'at', line + ':' + col, error);
             };
+
+            // --- Simulated Date for Testing ---
+            function getCurrentDate() {
+                // TEMPORARY: Simulate Jan 25, 2026 10:00 UTC for testing stale API data
+                return new Date('2026-01-25T10:00:00Z');
+                // PRODUCTION: Uncomment line below and remove line above
+                // return new Date();
+            }
+
             // --- State Management ---
             let state = {
                 channels: [],
@@ -1182,7 +1191,7 @@
                 const channelData = state.epg[epgKey];
                 if (!channelData || !channelData.epg_data) return null;
 
-                const now = new Date();
+                const now = getCurrentDate();
                 const program = channelData.epg_data.find(p => {
                     const start = new Date(p.start);
                     const stop = new Date(p.stop);
@@ -1293,13 +1302,13 @@
                         if (item.end) {
                             const endDate = new Date(item.end.replace(' ', 'T') + 'Z'); // Parse as UTC
                             // Hide immediately if current time is past end time
-                            if (new Date() > endDate) {
+                            if (getCurrentDate() > endDate) {
                                 return false;
                             }
                         } else if (item.start) {
                             // Fallback to start time heuristic if 'end' is missing
                             const startDate = new Date(item.start.replace(' ', 'T') + 'Z');
-                            const startDiff = (new Date() - startDate) / 1000 / 60;
+                            const startDiff = (getCurrentDate() - startDate) / 1000 / 60;
                             if (startDiff > 180) return false;
                         }
                         // Sort live by time
@@ -1314,7 +1323,7 @@
                     if (g.event.start) {
                         // API returns UTC times - parse as UTC, not local time
                         const startDate = new Date(g.event.start.replace(' ', 'T') + 'Z');
-                        if (new Date() > startDate) return false; // Already started
+                        if (getCurrentDate() > startDate) return false; // Already started
                     }
                     return true;
                 }).sort((a, b) => (a.event.start || '').localeCompare(b.event.start || ''));

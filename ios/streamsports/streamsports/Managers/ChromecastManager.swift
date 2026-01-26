@@ -53,11 +53,15 @@ class ChromecastManager: NSObject, ObservableObject, GCKSessionManagerListener {
     
     // MARK: - Session Listener
     func sessionManager(_ sessionManager: GCKSessionManager, didStart session: GCKSession) {
-        isConnected = true
+        withAnimation {
+            isConnected = true
+        }
     }
     
     func sessionManager(_ sessionManager: GCKSessionManager, didEnd session: GCKSession, withError error: Error?) {
-        isConnected = false
+        withAnimation {
+            isConnected = false
+        }
     }
     
     // MARK: - Discovery Listener

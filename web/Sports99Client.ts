@@ -28,7 +28,7 @@ export class Sports99Client {
     private playerReferer: string;
     private timeout: number;
 
-    constructor(user: string = "streamsports99", plan: string = "vip", timeout: number = 30000) {
+    constructor(user: string = "cdnlivetv", plan: string = "free", timeout: number = 30000) {
         this.user = user;
         this.plan = plan;
         this.baseApi = "https://api.cdn-live.tv/api/v1";
