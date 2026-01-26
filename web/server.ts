@@ -139,8 +139,8 @@ app.get('/api/proxy', async (req, res) => {
                             return `URI="${proxyUri}"`;
                         }
 
-                        // Always proxy Keys (often secured)
-                        if (trimmed.startsWith('#EXT-X-KEY')) {
+                        // Always proxy Keys (often secured) AND Map (init segments for fMP4)
+                        if (trimmed.startsWith('#EXT-X-KEY') || trimmed.startsWith('#EXT-X-MAP') || trimmed.startsWith('#EXT-X-MEDIA')) {
                             const proxyUri = `/api/proxy?url=${encodeURIComponent(absoluteUrl)}&referer=${encodeURIComponent(referer)}`;
                             return `URI="${proxyUri}"`;
                         }
