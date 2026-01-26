@@ -106,9 +106,17 @@
                     window.castSession = castContext.getCurrentSession();
                     if (window.castSession) {
                         const video = document.getElementById('videoPlayer');
-                        const streamSrc = window.rawStreamUrl || (video ? video.src : null);
 
-                        console.log('[chromecast] Attempting to cast URL:', streamSrc);
+                        // PRIORITIZE PROXY URL (video.src or currentStreamUrl) to ensure CORS/Headers are handled.
+                        // window.rawStreamUrl is the direct upstream link, which often fails on Cast due to missing headers.
+                        let streamSrc = (video ? video.src : null) || window.currentStreamUrl || window.rawStreamUrl;
+
+                        // Ensure Absolute URL (Chromecast requires http/https)
+                        if (streamSrc && streamSrc.startsWith('/')) {
+                            streamSrc = window.location.origin + streamSrc;
+                        }
+
+                        console.log('[chromecast] Casting URL (Proxy Preferred):', streamSrc);
 
                         if (!streamSrc) {
                             alert('No stream to cast. Please play a video first.');
