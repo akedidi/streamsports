@@ -83,6 +83,17 @@ app.get('/api/proxy', async (req, res) => {
     }
 
     // console.log(`[Proxy] Incoming Request: ${targetUrl}`); // Verbose
+    const userAgent = req.headers['user-agent'] || 'Unknown';
+    const origin = req.headers['origin'] || 'Unknown';
+
+    // Log typical Chromecast or Browser UA fragments to distinguish
+    const isCast = userAgent.includes('CrKey') || userAgent.includes('Google-Cast');
+    if (isCast) {
+        console.log(`[Proxy] 📡 CHROMECAST Request for: ${targetUrl.split('/').pop()}`);
+    } else {
+        console.log(`[Proxy] 🌍 BROWSER Request for: ${targetUrl.split('/').pop()}`);
+    }
+    // console.log(`[Proxy] UA: ${userAgent} | Origin: ${origin}`);
 
     try {
         const response = await axios.get(targetUrl, {

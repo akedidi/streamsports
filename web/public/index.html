@@ -125,6 +125,18 @@
                         try {
                             await window.castSession.loadMedia(request);
                             console.log('[chromecast] LoadMedia SUCCESS!');
+
+                            // Monitor Media State for detailed errors
+                            const mediaSession = window.castSession.getMediaSession();
+                            if (mediaSession) {
+                                mediaSession.addUpdateListener((isAlive) => {
+                                    console.log(`[chromecast] MediaUpdate: Alive=${isAlive}, State=${mediaSession.playerState}, Reason=${mediaSession.idleReason}`);
+                                    if (mediaSession.playerState === 'IDLE' && mediaSession.idleReason === 'ERROR') {
+                                        console.error('[chromecast] PLAYBACK ERROR DETECTED');
+                                        // alert('Playback Error: ' + mediaSession.idleReason);
+                                    }
+                                });
+                            }
                         } catch (loadError) {
                             console.error('[chromecast] LoadMedia FAILED:', loadError);
                             alert('Chromecast Load Failed: ' + (loadError.code || 'Unknown'));
