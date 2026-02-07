@@ -110,8 +110,11 @@ class PlayerManager: ObservableObject {
                 self.timeControlStatusObserver = self.player?.observe(\.timeControlStatus, options: [.new, .initial]) { [weak self] player, _ in
                     DispatchQueue.main.async {
                         self?.isBuffering = (player.timeControlStatus == .waitingToPlayAtSpecifiedRate)
+                        self?.updateNowPlayingState()
                     }
                 }
+                
+                self.player?.audiovisualBackgroundPlaybackPolicy = .continuesIfPossible
                 
                 self.player?.play()
                 self.setupNowPlaying(channel: channel)
@@ -144,7 +147,10 @@ class PlayerManager: ObservableObject {
     // MARK: - Background Audio & Lock Screen
     private func setupAudioSession() {
         do {
-            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .moviePlayback)
+            // Use .playback category with .default mode.
+            // .moviePlayback sometimes restricts background audio if video is present but screen is off?
+            // .default is safer for general media apps wanting background audio.
+            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, options: [.allowAirPlay, .allowBluetooth])
             try AVAudioSession.sharedInstance().setActive(true)
         } catch {
             print("Failed to set audio session:", error)
@@ -168,24 +174,154 @@ class PlayerManager: ObservableObject {
     private func setupNowPlaying(channel: SportsChannel) {
         var nowPlayingInfo = [String: Any]()
         nowPlayingInfo[MPMediaItemPropertyTitle] = channel.name
-        nowPlayingInfo[MPMediaItemPropertyArtist] = channel.match_info ?? channel.sport_category ?? "StreamSports"
         
-        if let image = channel.image, let url = URL(string: image) {
-            URLSession.shared.dataTask(with: url) { data, _, _ in
-                if let data = data, let img = UIImage(data: data) {
-                    nowPlayingInfo[MPMediaItemPropertyArtwork] = MPMediaItemArtwork(boundsSize: img.size) { _ in img }
-                    MPNowPlayingInfoCenter.default().nowPlayingInfo = nowPlayingInfo
-                }
-            }.resume()
+        // Subtitle logic matching UI
+        if let home = channel.home_team, let away = channel.away_team {
+            nowPlayingInfo[MPMediaItemPropertyArtist] = "\(home) vs \(away)"
+        } else {
+            nowPlayingInfo[MPMediaItemPropertyArtist] = channel.match_info ?? channel.sport_category ?? "StreamSports"
         }
         
-        MPNowPlayingInfoCenter.default().nowPlayingInfo = nowPlayingInfo
+        nowPlayingInfo[MPMediaItemPropertyPlaybackDuration] = player?.currentItem?.duration.seconds ?? 0
+        nowPlayingInfo[MPNowPlayingInfoPropertyPlaybackRate] = player?.rate ?? 0.0
+        nowPlayingInfo[MPNowPlayingInfoPropertyElapsedPlaybackTime] = player?.currentTime().seconds ?? 0.0
+        
+        MPNowPlayingInfoCenter.default().nowPlayingInfo = nowPlayingInfo // Set initial info
+        
+        // Artwork Logic
+        let imageUrl = (source == .event ? (channel.countryIMG ?? channel.image) : (channel.image ?? channel.countryIMG))
+        print("[PlayerManager] LockScreen Artwork URL: \(imageUrl ?? "nil")")
+        
+
+        
+        guard let image = imageUrl, let url = URL(string: image), !image.isEmpty else {
+            setDefaultArtwork()
+            return
+        }
+        
+        // Remove SVG check as user confirmed images work in app (likely PNG/JPG)
+        downloadArtwork(from: url)
+    }
+    
+    private func downloadArtwork(from url: URL) {
+        URLSession.shared.dataTask(with: url) { [weak self] data, _, error in
+            if let data = data, let img = UIImage(data: data) {
+                // Resize and Composite on Dark Background
+                let finalImage = self?.createSquareImage(from: img) ?? img
+                
+                DispatchQueue.main.async {
+                    var currentInfo = MPNowPlayingInfoCenter.default().nowPlayingInfo ?? [String: Any]()
+                    currentInfo[MPMediaItemPropertyArtwork] = MPMediaItemArtwork(boundsSize: finalImage.size) { _ in finalImage }
+                    MPNowPlayingInfoCenter.default().nowPlayingInfo = currentInfo
+                }
+            } else {
+                 print("[PlayerManager] Failed to download artwork: \(error?.localizedDescription ?? "Invalid Data")")
+                 self?.setDefaultArtwork()
+            }
+        }.resume()
+    }
+    
+    private func createSquareImage(from image: UIImage) -> UIImage {
+        let size = CGSize(width: 500, height: 500)
+        let renderer = UIGraphicsImageRenderer(size: size)
+        
+        return renderer.image { context in
+            // 1. Fill Dark Background
+            UIColor(white: 0.1, alpha: 1.0).setFill()
+            context.fill(CGRect(origin: .zero, size: size))
+            
+            // 2. Calculate aspect fit rect for the logo
+            let aspect = image.size.width / image.size.height
+            var drawRect: CGRect
+            
+            if aspect > 1 {
+                // Wide image
+                let w = size.width * 0.8
+                let h = w / aspect
+                drawRect = CGRect(x: (size.width - w) / 2, y: (size.height - h) / 2, width: w, height: h)
+            } else {
+                // Tall or square image
+                let h = size.height * 0.8
+                let w = h * aspect
+                drawRect = CGRect(x: (size.width - w) / 2, y: (size.height - h) / 2, width: w, height: h)
+            }
+            
+            // 3. Draw image centered
+            image.draw(in: drawRect)
+        }
+    }
+    
+    private func setDefaultArtwork() {
+        DispatchQueue.main.async {
+            var currentInfo = MPNowPlayingInfoCenter.default().nowPlayingInfo ?? [String: Any]()
+            // Ensure we use the generated placeholder which has a dark background
+            if let img = self.renderPlaceholderImage() {
+                 currentInfo[MPMediaItemPropertyArtwork] = MPMediaItemArtwork(boundsSize: img.size) { _ in img }
+            }
+            MPNowPlayingInfoCenter.default().nowPlayingInfo = currentInfo
+        }
+    }
+    
+    private func renderPlaceholderImage() -> UIImage? {
+        let size = CGSize(width: 500, height: 500)
+        let renderer = UIGraphicsImageRenderer(size: size)
+        
+        return renderer.image { context in
+            // Background
+            UIColor(white: 0.1, alpha: 1.0).setFill()
+            context.fill(CGRect(origin: .zero, size: size))
+            
+            // Symbol
+            if let symbol = UIImage(systemName: "tv.fill")?.withTintColor(.white) {
+                 // Scale symbol to fit nicely
+                 let symSize = CGSize(width: 250, height: 180) // approx aspect
+                 let rect = CGRect(
+                    x: (size.width - symSize.width) / 2,
+                    y: (size.height - symSize.height) / 2,
+                    width: symSize.width,
+                    height: symSize.height
+                 )
+                 symbol.draw(in: rect.insetBy(dx: -20, dy: -20)) // Naive drawing, simpler to use text or just fill
+            }
+            
+            // Text Fallback (StreamSports)
+            let text = "StreamSports"
+            let attrs: [NSAttributedString.Key: Any] = [
+                .font: UIFont.systemFont(ofSize: 60, weight: .bold),
+                .foregroundColor: UIColor.white
+            ]
+            let textSize = text.size(withAttributes: attrs)
+            let textRect = CGRect(
+                x: (size.width - textSize.width) / 2,
+                y: (size.height - textSize.height) / 2 + 100,
+                width: textSize.width,
+                height: textSize.height
+            )
+            text.draw(in: textRect, withAttributes: attrs)
+        }
+    }
+    
+    private func updateNowPlayingState() {
+        guard var info = MPNowPlayingInfoCenter.default().nowPlayingInfo else { return }
+        info[MPNowPlayingInfoPropertyPlaybackRate] = player?.rate ?? 0.0
+        info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = player?.currentTime().seconds ?? 0.0
+        MPNowPlayingInfoCenter.default().nowPlayingInfo = info
     }
     
     // MARK: - Chromecast Integration
     private var cancellables = Set<AnyCancellable>()
     
     private func setupChromecastObserver() {
+        // Disconnect player from AVPlayerLayer when entering background to avoid auto-pause?
+        // Actually, preventing auto-pause is handled by setting:
+        // player?.allowsExternalPlayback = true (default)
+        // AND having the AudioSession active.
+        
+        // Ensure player is not paused when view disappears
+        // In SwiftUI VideoPlayer, this happens automatically sometimes.
+        // A common fix is to ensure the AVPlayer is stored in the manager (done)
+        // and NOT solely owned by the View.
+        
         ChromecastManager.shared.$isConnected
             .receive(on: DispatchQueue.main)
             .sink { [weak self] isConnected in

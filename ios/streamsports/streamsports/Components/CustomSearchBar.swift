@@ -2,6 +2,7 @@ import SwiftUI
 
 struct CustomSearchBar: View {
     @Binding var text: String
+    var placeholder: String = "Search..."
     
     @StateObject private var chromecastManager = ChromecastManager.shared
     @State private var showCastSheet = false
@@ -12,7 +13,7 @@ struct CustomSearchBar: View {
             HStack {
                 Image(systemName: "magnifyingglass")
                     .foregroundColor(.gray)
-                TextField("Search events, teams...", text: $text)
+                TextField(placeholder, text: $text)
                     .foregroundColor(.white)
                 if !text.isEmpty {
                     Button(action: { text = "" }) {
@@ -25,11 +26,15 @@ struct CustomSearchBar: View {
             .background(Color(UIColor.secondarySystemBackground))
             .cornerRadius(10)
             
-            // Cast Button
+            // Cast Button (Always Visible)
             Button(action: {
                 showCastSheet = true
             }) {
-                ChromecastButton(tintColor: chromecastManager.isConnected ? .systemBlue : .white)
+                Image("ChromecastIcon")
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 22, height: 22)
+                    .foregroundColor(chromecastManager.isConnected ? .blue : .white)
                     .frame(width: 44, height: 44)
                     .background(Color(UIColor.secondarySystemBackground))
                     .cornerRadius(10)

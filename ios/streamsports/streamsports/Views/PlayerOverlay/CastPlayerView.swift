@@ -34,6 +34,7 @@ struct CastPlayerView: View {
                     Color.clear
                 }
                 .blur(radius: 40) // The "Effect Blur" requested
+                .scaleEffect(1.2) // Scale up to avoid blur artifacts at edges
                 .overlay(Color.black.opacity(0.5)) // Dimming for readability
             }
             
@@ -51,20 +52,36 @@ struct CastPlayerView: View {
                 // Priority: Event -> Flag (countryIMG), Channel -> Logo (image)
                 let imageUrl = (manager.source == .event ? (channel.countryIMG ?? channel.image) : (channel.image ?? channel.countryIMG))
                 
-                if let img = imageUrl, let url = URL(string: img) {
-                    AsyncImage(url: url) { image in
-                        image.resizable().aspectRatio(contentMode: .fit)
-                    } placeholder: {
-                        Color(white: 0.1)
-                            .overlay(ProgressView().tint(.white))
+                if let img = imageUrl, let url = URL(string: img), !img.isEmpty {
+                    AsyncImage(url: url) { phase in
+                        switch phase {
+                        case .empty:
+                            ProgressView()
+                                .tint(.white)
+                                .frame(width: 120, height: 90)
+                                .background(Color(white: 0.1))
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                        case .success(let image):
+                            image.resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(width: 120, height: 90)
+                                .background(Color.clear)
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                                .shadow(color: .black.opacity(0.6), radius: 15, x: 0, y: 8)
+                                .padding(.bottom, 20)
+                        case .failure:
+                            // Fallback on failure
+                             Image(systemName: "tv")
+                                .font(.system(size: 50))
+                                .foregroundColor(.white.opacity(0.7))
+                                .frame(width: 100, height: 100)
+                                .background(Color.white.opacity(0.1))
+                                .clipShape(Circle())
+                                .padding(.bottom, 20)
+                        @unknown default:
+                             EmptyView()
+                        }
                     }
-                    // Smaller size as requested (was 220)
-                    .frame(width: 120, height: 90)
-                    .background(Color.clear)
-                    // Modern shadow and slight rounding
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                    .shadow(color: .black.opacity(0.6), radius: 15, x: 0, y: 8)
-                    .padding(.bottom, 20)
                 } else {
                      // Default Icon
                     Image(systemName: "tv")

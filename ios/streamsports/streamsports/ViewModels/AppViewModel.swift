@@ -18,6 +18,25 @@ class AppViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var searchText: String = ""
     
+    // Performance Optimization: Cached Status Map
+    var channelStatusMap: [String: String] = [:]
+    
+    // Cached Formatters
+    private let isoFormatter: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds] // Adjust logic inside
+        return f
+    }()
+    
+    // We use a specific one for standard ISO (no fractional usually)
+    private let standardIsoFormatter = ISO8601DateFormatter()
+    
+    private let timeFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "HH:mm"
+        return f
+    }()
+    
     // Channels Filtering
     @Published var channelSearchText: String = ""
     @Published var selectedCountry: String? = nil
@@ -94,6 +113,17 @@ class AppViewModel: ObservableObject {
         group.enter()
         network.fetchChannels { [weak self] items in
             self?.channels = items
+            
+            // Populate Status Map for O(1) Access
+            var map: [String: String] = [:]
+            for item in items {
+                if let status = item.status {
+                    let name = item.name.lowercased()
+                    map[name] = status.lowercased()
+                }
+            }
+            self?.channelStatusMap = map
+            
             group.leave()
         }
         
@@ -111,11 +141,16 @@ class AppViewModel: ObservableObject {
             group.leave()
         }
         
-        group.notify(queue: .main) {
+        // Notify on background queue to avoid blocking main thread with processing
+        group.notify(queue: .global(qos: .userInitiated)) { [weak self] in
+            guard let self = self else { return }
             // Hydrate events with channel status AFTER both are loaded
-            self.filterAndGroupEvents()
-            if !silent { self.isLoading = false }
-            completion?()
+            self.filterAndGroupEvents {
+                DispatchQueue.main.async {
+                    if !silent { self.isLoading = false }
+                    completion?()
+                }
+            }
         }
     }
     
@@ -128,119 +163,138 @@ class AppViewModel: ObservableObject {
         }
     }
     
-    private func filterAndGroupEvents() {
-        // 1. Filter by Search
-        var filtered = searchText.isEmpty ? allEvents : allEvents.filter {
-            $0.name.localizedCaseInsensitiveContains(searchText) ||
-            ($0.league ?? "").localizedCaseInsensitiveContains(searchText) ||
-            ($0.home_team ?? "").localizedCaseInsensitiveContains(searchText) ||
-            ($0.away_team ?? "").localizedCaseInsensitiveContains(searchText)
-        }
+    // Make public and add completion handler for loadData to know when done
+    func filterAndGroupEvents(completion: (() -> Void)? = nil) {
+        // Capture current state to avoid thread race conditions
+        let currentSearch = searchText
+        let currentCategory = selectedCategory
+        let rawEvents = allEvents
+        let rawChannels = channels
         
-        // 2. Filter by Category
-        if selectedCategory != "All" {
-            filtered = filtered.filter { $0.sport_category == selectedCategory }
-        }
-        
-        // 3. Grouping & Hydration
-        var groups: [String: GroupedEvent] = [:]
-        
-        // Create a lookup map for global channels for faster status access
-        // Map Name -> Status, Code -> Status (Normalized: Lowercase + Trimmed)
-        var statusMap: [String: String] = [:]
-        
-        func normalize(_ s: String?) -> String? {
-            guard let s = s else { return nil }
-            return self.normalizeName(s)
-        }
-        
-        for c in self.channels {
-            if let s = c.status {
-                if let name = normalize(c.name) { statusMap[name] = s }
-                if let code = normalize(c.code) { statusMap[code] = s }
-                // Also map channel_name if different
-                if let cname = normalize(c.channel_name), cname != normalize(c.name) {
-                    statusMap[cname] = s
-                }
-            }
-        }
-        
-        for item in filtered {
-            let key = item.gameID ?? item.match_info ?? item.name
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self = self else { return }
             
-            // HYDRATION: Check if this item (channel) has status. If not (or if offline), lookup global status.
-            var channelItem = item
-            if channelItem.status == nil || channelItem.status?.lowercased() == "offline" {
-                var foundStatus: String? = nil
-                
-                // 1. Try Code
-                if let code = normalize(channelItem.code), let s = statusMap[code] {
-                    foundStatus = s
-                }
-                // 2. Try Name
-                else if let name = normalize(channelItem.name), let s = statusMap[name] {
-                    foundStatus = s
-                }
-                // 3. Try Channel Name
-                else if let cname = normalize(channelItem.channel_name), let s = statusMap[cname] {
-                    foundStatus = s
-                }
-                
-                if let s = foundStatus {
-                    channelItem = channelItem.with(status: s)
+            // 1. Filter by Search
+            var filtered = currentSearch.isEmpty ? rawEvents : rawEvents.filter {
+                $0.name.localizedCaseInsensitiveContains(currentSearch) ||
+                ($0.league ?? "").localizedCaseInsensitiveContains(currentSearch) ||
+                ($0.home_team ?? "").localizedCaseInsensitiveContains(currentSearch) ||
+                ($0.away_team ?? "").localizedCaseInsensitiveContains(currentSearch)
+            }
+            
+            // 2. Filter by Category
+            if currentCategory != "All" {
+                filtered = filtered.filter { $0.sport_category == currentCategory }
+            }
+            
+            // 3. Grouping & Hydration
+            var groups: [String: GroupedEvent] = [:]
+            
+            // Create a lookup map for global channels for faster status access
+            // Map Name -> Status, Code -> Status (Normalized: Lowercase + Trimmed)
+            var statusMap: [String: String] = [:]
+            
+            func normalize(_ s: String?) -> String? {
+                guard let s = s else { return nil }
+                return self.normalizeName(s)
+            }
+            
+            for c in rawChannels {
+                if let s = c.status {
+                    if let name = normalize(c.name) { statusMap[name] = s }
+                    if let code = normalize(c.code) { statusMap[code] = s }
+                    // Also map channel_name if different
+                    if let cname = normalize(c.channel_name), cname != normalize(c.name) {
+                        statusMap[cname] = s
+                    }
                 }
             }
             
-            if groups[key] == nil {
-                groups[key] = GroupedEvent(id: key, displayItem: item, channels: [])
-            }
-            groups[key]?.channels.append(channelItem)
-        }
-        
-        // Filter out events without any channels
-        let allGroups = Array(groups.values).filter { !$0.channels.isEmpty }
-        
-        // 4. Separation (Live vs Upcoming) & Sorting
-        
-        let utcFormatter = DateFormatter()
-        utcFormatter.dateFormat = "yyyy-MM-dd HH:mm"
-        utcFormatter.timeZone = TimeZone(abbreviation: "UTC")
-        
-        // REAL DATE (No Simulation)
-        let simDate = Date()
-
-        // Live
-        self.liveEvents = allGroups
-            .filter { group in
-                guard group.displayItem.status == "live" else { return false }
+            for item in filtered {
+                let key = item.gameID ?? item.match_info ?? item.name
                 
-                // Check if event has ended using 'end' field
-                if let endStr = group.displayItem.end,
-                   let endDate = utcFormatter.date(from: endStr) {
-                    // Hide immediately if current time is past end time
-                    if simDate > endDate {
-                        return false
+                // HYDRATION: Check if this item (channel) has status. If not (or if offline), lookup global status.
+                var channelItem = item
+                if channelItem.status == nil || channelItem.status?.lowercased() == "offline" {
+                    var foundStatus: String? = nil
+                    
+                    // 1. Try Code
+                    if let code = normalize(channelItem.code), let s = statusMap[code] {
+                        foundStatus = s
+                    }
+                    // 2. Try Name
+                    else if let name = normalize(channelItem.name), let s = statusMap[name] {
+                        foundStatus = s
+                    }
+                    // 3. Try Channel Name
+                    else if let cname = normalize(channelItem.channel_name), let s = statusMap[cname] {
+                        foundStatus = s
+                    }
+                    
+                    if let s = foundStatus {
+                        channelItem = channelItem.with(status: s)
                     }
                 }
                 
-                return true
-            }
-            .sorted { ($0.displayItem.start ?? "") < ($1.displayItem.start ?? "") }
-            
-        // Upcoming (Filter past events)
-        self.upcomingEvents = allGroups
-            .filter { group in
-                guard group.displayItem.status != "live" else { return false }
-                
-                // Only show events that haven't started yet
-                if let startStr = group.displayItem.start,
-                   let startDate = utcFormatter.date(from: startStr) {
-                    if simDate > startDate { return false }
+                if groups[key] == nil {
+                    groups[key] = GroupedEvent(id: key, displayItem: item, channels: [])
                 }
-                
-                return true
+                groups[key]?.channels.append(channelItem)
             }
-            .sorted { ($0.displayItem.start ?? "") < ($1.displayItem.start ?? "") }
+            
+            // Filter out events without any channels
+            let allGroups = Array(groups.values).filter { !$0.channels.isEmpty }
+            
+            // 4. Separation (Live vs Upcoming) & Sorting
+            
+            // Re-create formatter in background thread
+            let utcFormatter = DateFormatter()
+            utcFormatter.dateFormat = "yyyy-MM-dd HH:mm"
+            utcFormatter.timeZone = TimeZone(abbreviation: "UTC")
+            
+            // REAL DATE (No Simulation)
+            let simDate = Date()
+            
+            // Live
+            let finalLive = allGroups
+                .filter { group in
+                    guard group.displayItem.status == "live" else { return false }
+                    
+                    // Check if event has ended using 'end' field
+                    if let endStr = group.displayItem.end,
+                       let endDate = utcFormatter.date(from: endStr) {
+                        // Hide immediately if current time is past end time
+                        if simDate > endDate {
+                            return false
+                        }
+                    }
+                    
+                    return true
+                }
+                .sorted { ($0.displayItem.start ?? "") < ($1.displayItem.start ?? "") }
+            
+            // Upcoming (Filter past events)
+            let finalUpcoming = allGroups
+                .filter { group in
+                    guard group.displayItem.status != "live" else { return false }
+                    
+                    // Only show events that haven't started yet
+                    if let startStr = group.displayItem.start,
+                       let startDate = utcFormatter.date(from: startStr) {
+                        if simDate > startDate { return false }
+                    }
+                    
+                    return true
+                }
+                .sorted { ($0.displayItem.start ?? "") < ($1.displayItem.start ?? "") }
+            
+            // Update UI on Main Thread
+            DispatchQueue.main.async {
+                self.liveEvents = finalLive
+                self.upcomingEvents = finalUpcoming
+                completion?()
+            }
+        }
     }
 
     
@@ -295,12 +349,16 @@ class AppViewModel: ObservableObject {
     }
     
     func formatTime(_ isoString: String) -> String {
-        let isoFormatter = ISO8601DateFormatter()
+        // Try cached formatters
+        // 1. Full ISO (Internet DateTime + Fractional)
         if let date = isoFormatter.date(from: isoString) {
-            let local = DateFormatter()
-            local.dateFormat = "HH:mm"
-            return local.string(from: date)
+            return timeFormatter.string(from: date)
         }
+        // 2. Standard ISO
+        if let date = standardIsoFormatter.date(from: isoString) {
+            return timeFormatter.string(from: date)
+        }
+        
         return ""
     }
 }

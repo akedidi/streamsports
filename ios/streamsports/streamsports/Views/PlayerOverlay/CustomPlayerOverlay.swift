@@ -99,6 +99,8 @@ class PlayerUIView: UIView {
 struct CustomPlayerOverlay: View {
     @ObservedObject var manager = PlayerManager.shared
     @EnvironmentObject var viewModel: AppViewModel
+    // Observe ChromecastManager to trigger UI updates on connection state change
+    @ObservedObject var chromecastManager = ChromecastManager.shared
     
     @State private var dragOffset: CGFloat = 0
     @State private var currentTime: Double = 0
@@ -126,7 +128,7 @@ struct CustomPlayerOverlay: View {
                 if let channel = manager.currentChannel {
                     // CHECK FOR CHROMECAST CONNECTION
                     Group {
-                        if ChromecastManager.shared.isConnected {
+                        if chromecastManager.isConnected {
                         // --- CASTING UI ---
                         ZStack(alignment: .bottom) {
                              if !manager.isMiniPlayer {
@@ -164,6 +166,21 @@ struct CustomPlayerOverlay: View {
                         )
                         .frame(maxWidth: .infinity) // Full width for mini player
                         .offset(y: manager.isMiniPlayer ? -10 : 0) // Slight lift for dock style
+                        
+                    } else if chromecastManager.isConnecting {
+                        // --- CONNECTING / LOADING STATE ---
+                        ZStack {
+                            Color.black.opacity(0.6).edgesIgnoringSafeArea(.all) // Use semi-transparent overlay instead of solid black
+                            VStack(spacing: 20) {
+                                ProgressView()
+                                    .scaleEffect(1.5, anchor: .center)
+                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                Text("Connecting to Chromecast...")
+                                    .font(.headline)
+                                    .foregroundColor(.white)
+                            }
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                         
                     } else {
                         // --- LOCAL PLAYER UI (Original) ---
@@ -251,10 +268,9 @@ struct CustomPlayerOverlay: View {
                                 height: manager.isMiniPlayer ? miniPlayerHeight : (isLandscapeMode ? nil : geometry.size.width * 9/16)
                             )
                             .frame(maxWidth: isLandscapeMode ? .infinity : nil, maxHeight: isLandscapeMode ? .infinity : nil)
-                            // Align Video to the right (next to buttons) in MiniPlayer
-                            // Buttons (80px) + Padding (10px) = 90px from trailing edge
-                            .frame(maxWidth: .infinity, alignment: manager.isMiniPlayer ? .trailing : .center)
-                            .padding(.trailing, manager.isMiniPlayer ? 90 : 0)
+                            // Align Video to the LEFT in MiniPlayer
+                            .frame(maxWidth: .infinity, alignment: manager.isMiniPlayer ? .leading : .center)
+                            .padding(.leading, manager.isMiniPlayer ? 10 : 0)
                             
                             // 3. BELOW VIDEO CONTENT (Portrait Only)
                             if !manager.isMiniPlayer && !isLandscapeMode {
@@ -266,11 +282,29 @@ struct CustomPlayerOverlay: View {
                                             // Logo
                                             Group {
                                                 if let img = channel.countryIMG, let url = URL(string: img) {
-                                                    AsyncImage(url: url) { ph in ph.resizable().aspectRatio(contentMode: .fit) } placeholder: { Color.clear }
+                                                    AsyncImage(url: url) { phase in
+                                                        switch phase {
+                                                        case .success(let image):
+                                                            image.resizable().aspectRatio(contentMode: .fit)
+                                                        case .failure(_), .empty:
+                                                            Image(systemName: "tv").font(.title2).foregroundColor(.gray)
+                                                        @unknown default:
+                                                            Image(systemName: "tv").font(.title2).foregroundColor(.gray)
+                                                        }
+                                                    }
                                                 } else if let img = channel.image, let url = URL(string: img) {
-                                                    AsyncImage(url: url) { ph in ph.resizable().aspectRatio(contentMode: .fit) } placeholder: { Color.clear }
+                                                    AsyncImage(url: url) { phase in
+                                                        switch phase {
+                                                        case .success(let image):
+                                                            image.resizable().aspectRatio(contentMode: .fit)
+                                                        case .failure(_), .empty:
+                                                            Image(systemName: "tv").font(.title2).foregroundColor(.gray)
+                                                        @unknown default:
+                                                            Image(systemName: "tv").font(.title2).foregroundColor(.gray)
+                                                        }
+                                                    }
                                                 } else {
-                                                    Image(systemName: "tv").foregroundColor(.gray)
+                                                    Image(systemName: "tv").font(.title2).foregroundColor(.gray)
                                                 }
                                             }
                                             .frame(width: 44, height: 44)
@@ -578,7 +612,7 @@ struct PlayerControlsView: View {
             
             // CENTER CONTROLS
             HStack(spacing: 50) {
-                if !manager.isBuffering {
+                if !manager.isBuffering && manager.player != nil {
                      Button(action: {
                         manager.seek(to: currentTime - 10)
                     }) {
@@ -618,12 +652,15 @@ struct PlayerControlsView: View {
                     Spacer()
                     
                     HStack(spacing: 20) {
-                        // Manual Chromecast Button (Always Visible via wrapper)
+                        // Chromecast Button (Always Visible)
                         Button(action: {
                             showCastSheet = true
                         }) {
-                             ChromecastButton()
+                            Image("ChromecastIcon")
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
                                 .frame(width: 24, height: 24)
+                                .foregroundColor(.white)
                         }
 
                         
@@ -713,41 +750,28 @@ struct MiniPlayerControls: View {
     @ObservedObject var manager: PlayerManager
     let maximizeAction: () -> Void
     
+    // Video width (16:9 aspect ratio for height 60)
+    private let videoWidth: CGFloat = 107
+    
     var body: some View {
-         HStack(spacing: 8) {
-            // Logo / Flag
-            Group {
-                if let img = channel.countryIMG, let url = URL(string: img) {
-                    AsyncImage(url: url) { phase in
-                        if let image = phase.image { image.resizable().aspectRatio(contentMode: .fit) } else { Color.clear }
-                    }
-                } else if let img = channel.image, let url = URL(string: img) {
-                    AsyncImage(url: url) { phase in
-                        if let image = phase.image { image.resizable().aspectRatio(contentMode: .fit) } else { Color.clear }
-                    }
-                } else {
-                    Image(systemName: "tv").foregroundColor(.gray)
-                }
-            }
-            .frame(width: 24, height: 24)
+        HStack(spacing: 8) {
+            // Video Gap (left side - video is rendered separately)
+            Color.clear
+                .frame(width: videoWidth, height: 1)
             
-            // Title
+            // Title (to the right of video)
             VStack(alignment: .leading, spacing: 2) {
                 Text(channel.name)
                     .font(.system(size: 13, weight: .semibold))
-                    .lineLimit(2) // Allow 2 lines
-                    .minimumScaleFactor(0.9) // Slight shrink if needed
-                    .fixedSize(horizontal: false, vertical: true) // Allow growing vertically
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.9)
+                    .fixedSize(horizontal: false, vertical: true)
                     .foregroundColor(.white)
             }
             
             Spacer(minLength: 0)
             
-            // Video Gap
-            Color.clear
-                .frame(width: 107, height: 1)
-            
-            // Buttons
+            // Buttons (right side)
             HStack(spacing: 0) {
                 Button(action: { manager.togglePlayPause() }) {
                     Image(systemName: manager.isPlaying ? "pause.fill" : "play.fill")

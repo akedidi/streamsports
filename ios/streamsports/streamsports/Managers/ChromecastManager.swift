@@ -13,6 +13,7 @@ class ChromecastManager: NSObject, ObservableObject, GCKSessionManagerListener, 
     
     @Published var devices: [GCKDevice] = []
     @Published var isConnected = false
+    @Published var isConnecting = false
     
     override init() {
         super.init()
@@ -50,6 +51,7 @@ class ChromecastManager: NSObject, ObservableObject, GCKSessionManagerListener, 
     }
     
     func connect(to device: GCKDevice) {
+        withAnimation { isConnecting = true }
         GCKCastContext.sharedInstance().sessionManager.startSession(with: device)
     }
     
@@ -125,10 +127,16 @@ class ChromecastManager: NSObject, ObservableObject, GCKSessionManagerListener, 
     }
     
     // MARK: - Session Listener
+    func sessionManager(_ sessionManager: GCKSessionManager, willStart session: GCKSession) {
+        print("[ChromecastManager] ⏳ Session Will Start")
+        withAnimation { isConnecting = true }
+    }
+
     func sessionManager(_ sessionManager: GCKSessionManager, didStart session: GCKSession) {
         print("[ChromecastManager] 🔗 Session Started")
         withAnimation {
             isConnected = true
+            isConnecting = false
         }
     }
     
@@ -136,6 +144,7 @@ class ChromecastManager: NSObject, ObservableObject, GCKSessionManagerListener, 
         print("[ChromecastManager] 🔗 Session Resumed")
         withAnimation {
             isConnected = true
+            isConnecting = false
         }
     }
     
@@ -143,6 +152,15 @@ class ChromecastManager: NSObject, ObservableObject, GCKSessionManagerListener, 
         print("[ChromecastManager] 🔌 Session Ended")
         withAnimation {
             isConnected = false
+            isConnecting = false
+        }
+    }
+    
+    func sessionManager(_ sessionManager: GCKSessionManager, didFailToStart session: GCKSession, withError error: Error) {
+        print("[ChromecastManager] ❌ Session Failed To Start: \(error.localizedDescription)")
+        withAnimation {
+            isConnected = false
+            isConnecting = false
         }
     }
     
@@ -199,7 +217,9 @@ struct ChromecastButton: UIViewRepresentable {
         btn.tintColor = tintColor
         // Disable user interaction so the SwiftUI wrapper can catch the tap
         // This effectively makes it just a visual icon managed by the SDK
-        btn.isUserInteractionEnabled = false 
+        btn.isUserInteractionEnabled = false
+        // Prevent auto-hide when no devices are available
+        btn.triggersDefaultCastDialog = false
         return btn
     }
     

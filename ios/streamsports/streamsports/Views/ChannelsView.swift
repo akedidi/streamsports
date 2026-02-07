@@ -7,7 +7,7 @@ struct ChannelsView: View {
     var body: some View {
         VStack(spacing: 0) {
             // Search Bar
-            CustomSearchBar(text: $viewModel.channelSearchText)
+            CustomSearchBar(text: $viewModel.channelSearchText, placeholder: "Search channels...")
                 .padding(.top)
             
             // Country Filter (Menu / ComboBox)
@@ -60,18 +60,31 @@ struct ChannelsView: View {
                 ProgressView()
                 Spacer()
             } else {
-                List(viewModel.filteredChannels) { channel in
-                    Button(action: {
-                        PlayerManager.shared.play(channel: channel, source: .channelList)
-                    }) {
-                        ChannelRow(channel: channel)
+                ScrollViewReader { proxy in
+                    List {
+                        ForEach(viewModel.filteredChannels) { channel in
+                            Button(action: {
+                                PlayerManager.shared.play(channel: channel, source: .channelList)
+                            }) {
+                                ChannelRow(channel: channel)
+                            }
+                            .listRowBackground(Color.clear)
+                            .id(channel.id)
+                        }
                     }
-                    .listRowBackground(Color.clear)
-                }
-                .listStyle(PlainListStyle())
-                .edgesIgnoringSafeArea(.bottom)
-                .refreshable {
-                    await viewModel.reload()
+                    .listStyle(PlainListStyle())
+                    .edgesIgnoringSafeArea(.bottom)
+                    .refreshable {
+                        await viewModel.reload()
+                    }
+                    .onChange(of: viewModel.selectedCountry) { _ in
+                        // Scroll to top when country changes
+                        if let firstChannel = viewModel.filteredChannels.first {
+                            withAnimation {
+                                proxy.scrollTo(firstChannel.id, anchor: .top)
+                            }
+                        }
+                    }
                 }
                 
                 // Spacer removed (handled by content padding)

@@ -74,19 +74,16 @@ struct ChannelRow: View {
     }
     
     // Get status by looking up channel name in the channels list
+    // Get status by looking up channel name in the map (O(1))
     func getChannelStatus(_ item: SportsChannel) -> String {
-        let channelName = (item.channel_name ?? item.name).lowercased()
+        let name = item.name.lowercased()
         
-        // Lookup in viewModel.channels by name
-        if let matched = viewModel.channels.first(where: { 
-            $0.name.lowercased() == channelName || 
-            channelName.contains($0.name.lowercased()) ||
-            $0.name.lowercased().contains(channelName)
-        }) {
-            return matched.status?.lowercased() ?? "offline"
+        // 1. Precise Lookup
+        if let status = viewModel.channelStatusMap[name] {
+            return status
         }
         
-        // Fallback to item's own status
+        // 2. Fallback to item's own status
         return item.status?.lowercased() ?? "offline"
     }
     

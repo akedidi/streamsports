@@ -8,7 +8,7 @@ struct EventsView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            CustomSearchBar(text: $viewModel.searchText)
+            CustomSearchBar(text: $viewModel.searchText, placeholder: "Search events, teams...")
                 .padding(.top)
                 .padding(.bottom, 8)
             

@@ -109,7 +109,10 @@ export class Sports99Client {
     public async fetchLiveTvChannels(): Promise<Sports99Channel[]> {
         const url = `${this.baseApi}/channels/?user=${this.user}&plan=${this.plan}`;
         try {
-            const res = await axios.get(url, { timeout: this.timeout });
+            const headers = {
+                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            };
+            const res = await axios.get(url, { headers, timeout: this.timeout });
             const channels = res.data.channels || [];
             return channels.map((c: any) => ({
                 name: c.name,
@@ -129,9 +132,6 @@ export class Sports99Client {
     // ---------------------------------------------------------
     // Fetch Sports Events
     // ---------------------------------------------------------
-    // ---------------------------------------------------------
-    // Fetch Sports Events
-    // ---------------------------------------------------------
     public async fetchSportsEvents(sport: string = ""): Promise<Sports99Channel[]> {
         let endpoint = "sports";
         if (sport && sport !== "all") {
@@ -140,7 +140,10 @@ export class Sports99Client {
 
         const url = `${this.baseApi}/events/${endpoint}/?user=${this.user}&plan=${this.plan}`;
         try {
-            const res = await axios.get(url, { timeout: this.timeout });
+            const headers = {
+                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            };
+            const res = await axios.get(url, { headers, timeout: this.timeout });
             const data = res.data;
 
             const flattenedChannels: Sports99Channel[] = [];
@@ -204,7 +207,10 @@ export class Sports99Client {
     // ---------------------------------------------------------
     public async resolveStreamUrl(playerUrl: string): Promise<string | null> {
         try {
-            const headers = { Referer: this.playerReferer };
+            const headers = {
+                Referer: this.playerReferer,
+                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            };
             const res = await axios.get(playerUrl, { headers, timeout: this.timeout });
             const js = this.decodeObfuscatedJs(res.data);
             if (!js) {

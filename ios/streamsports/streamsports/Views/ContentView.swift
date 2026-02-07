@@ -6,6 +6,7 @@ struct ContentView: View {
     @State private var selectedTab: Int = 0 // 0: Events, 1: Channels
     
     @ObservedObject var playerManager = PlayerManager.shared // Observe for animation
+    @Environment(\.scenePhase) private var scenePhase
     
     // Custom Colors
     let bgDark = Color(red: 0.05, green: 0.05, blue: 0.05)
@@ -49,6 +50,12 @@ struct ContentView: View {
         .environmentObject(viewModel)
         .onAppear {
             viewModel.loadData()
+        }
+        .onChange(of: scenePhase) { newPhase in
+            if newPhase == .active {
+                // Refresh events when returning from background
+                viewModel.loadData(silent: true)
+            }
         }
         .preferredColorScheme(.dark)
     }
