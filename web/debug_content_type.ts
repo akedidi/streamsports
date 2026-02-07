@@ -7,7 +7,7 @@ async function main() {
     const channels = await client.getAllChannels();
     const channel = channels.find(c => c.name.toLowerCase().includes('abc'));
     if (!channel) return;
-    const streamUrl = await client.resolveStreamUrl(channel.url);
+    const result = await client.resolveStreamUrl(channel.url); const streamUrl = result ? result.streamUrl : null;
     if (!streamUrl) return;
 
     const headers = {

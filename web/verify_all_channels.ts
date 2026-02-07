@@ -29,14 +29,15 @@ async function verifyChannel(client: Sports99Client, channel: Sports99Channel): 
             status.error = "No URL provided";
             return status;
         }
-        const streamUrl = await client.resolveStreamUrl(channel.url);
-        if (!streamUrl) {
+        const result = await client.resolveStreamUrl(channel.url);
+        if (!result || !result.streamUrl) {
             status.error = "Resolution returned null";
             return status;
         }
 
         // 2. Playlist Access
         status.stage = 'PLAYLIST';
+        const streamUrl = result!.streamUrl;
         const headers = {
             'Referer': channel.url,
             'Origin': new URL(channel.url).origin,

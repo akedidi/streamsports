@@ -15,9 +15,9 @@ async function main() {
         }
 
         console.log(`Resolving stream for: ${channel.name}`);
-        const streamUrl = await client.resolveStreamUrl(channel.url);
+        const result = await client.resolveStreamUrl(channel.url); const streamUrl = result ? result.streamUrl : null;
 
-        if (streamUrl) {
+        if (result && result.streamUrl) {
             console.log(`Resolved URL: ${streamUrl}`);
             console.log("Fetching m3u8 content...");
 

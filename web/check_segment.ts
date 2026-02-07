@@ -11,7 +11,7 @@ async function main() {
         if (!channel) { console.log("No channel found."); return; }
 
         console.log(`Testing channel: ${channel.name}`);
-        const streamUrl = await client.resolveStreamUrl(channel.url);
+        const result = await client.resolveStreamUrl(channel.url); const streamUrl = result ? result.streamUrl : null;
         if (!streamUrl) return;
 
         const headers = {

@@ -24,9 +24,9 @@ async function main() {
         console.log("-----------------------\n");
 
         console.log(`Resolving stream for: ${channel.name}`);
-        const streamUrl = await client.resolveStreamUrl(channel.url);
+        const result = await client.resolveStreamUrl(channel.url); const streamUrl = result ? result.streamUrl : null;
 
-        if (streamUrl) {
+        if (result && result.streamUrl) {
             console.log(`✅ Resolved Stream URL:`);
             console.log(streamUrl);
 

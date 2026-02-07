@@ -24,8 +24,8 @@ async function main() {
             console.log(`URL: ${channel.url}`);
 
             try {
-                const streamUrl = await client.resolveStreamUrl(channel.url);
-                if (streamUrl) {
+                const result = await client.resolveStreamUrl(channel.url); const streamUrl = result ? result.streamUrl : null;
+                if (result && result.streamUrl) {
                     console.log(`✅ Resolved Stream URL: ${streamUrl}`);
 
                     // Test M3U8 Access

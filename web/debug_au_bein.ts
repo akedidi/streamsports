@@ -40,7 +40,7 @@ async function testChannel(client: Sports99Client, channel: any) {
     console.log(`Testing Channel: ${channel.name} (${channel.code})`);
     console.log(`URL: ${channel.url}`);
 
-    const streamUrl = await client.resolveStreamUrl(channel.url);
+    const result = await client.resolveStreamUrl(channel.url); const streamUrl = result ? result.streamUrl : null;
     if (!streamUrl) {
         console.log("❌ Resolution returned null.");
         return;
