@@ -109,8 +109,8 @@ app.get('/api/proxy', async (req, res) => {
 
     try {
         const headers: any = {
-            // Try "VLC" disguise - Media Player UA
-            'User-Agent': 'VLC/3.0.18 LibVLC/3.0.18',
+            // Use the same browser UA as the client to avoid 401 Unauthorized
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             'Accept': '*/*'
         };
 
