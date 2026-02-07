@@ -139,7 +139,14 @@ app.get('/api/proxy', async (req, res) => {
             headers['Cookie'] = cookie;
         }
 
-        const response = await axios.get(targetUrl, {
+        let finalTargetUrl = targetUrl;
+        const useExternalProxy = req.query.external_proxy === 'true';
+        if (useExternalProxy) {
+            console.log(`[Proxy] Using External Proxy: https://corsproxy.io/?...`);
+            finalTargetUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
+        }
+
+        const response = await axios.get(finalTargetUrl, {
             headers,
             responseType: 'arraybuffer'
         });
