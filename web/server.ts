@@ -69,11 +69,19 @@ app.get('/api/stream', async (req, res) => {
 
     try {
         console.log(`[API] Resolving stream for: ${playerUrl}`);
-        const streamUrl = await client.resolveStreamUrl(playerUrl);
-        if (streamUrl) {
-            const proxyUrl = `/api/proxy?url=${encodeURIComponent(streamUrl)}&referer=${encodeURIComponent(playerUrl)}`;
+        const result = await client.resolveStreamUrl(playerUrl);
+
+        if (result && result.streamUrl) {
+            let proxyUrl = `/api/proxy?url=${encodeURIComponent(result.streamUrl)}&referer=${encodeURIComponent(playerUrl)}`;
+            // Pass cookies to proxy if present
+            if (result.cookies && result.cookies.length > 0) {
+                // Simplify cookies to name=value; name2=value2
+                const cookieString = result.cookies.map(c => c.split(';')[0]).join('; ');
+                proxyUrl += `&cookie=${encodeURIComponent(cookieString)}`;
+            }
+
             // Expose Raw URL for Chromecast (Residential IP)
-            res.json({ success: true, streamUrl: proxyUrl, rawUrl: streamUrl });
+            res.json({ success: true, streamUrl: proxyUrl, rawUrl: result.streamUrl });
         } else {
             res.status(404).json({ success: false, message: 'Could not resolve stream URL' });
         }
@@ -87,6 +95,7 @@ app.get('/api/stream', async (req, res) => {
 app.get('/api/proxy', async (req, res) => {
     const targetUrl = req.query.url as string;
     const referer = req.query.referer as string;
+    const cookie = req.query.cookie as string;
 
     if (!targetUrl || !referer) {
         console.error('[Proxy] Missing targetUrl or referer');
@@ -125,6 +134,10 @@ app.get('/api/proxy', async (req, res) => {
         // FORCE Referer to 'https://cdn-live.tv/' because the edge server blocks 'streamsports99.su'
         // The previous logic passed the client's referer, which caused 403 Forbidden.
         headers['Referer'] = 'https://cdn-live.tv/';
+
+        if (cookie) {
+            headers['Cookie'] = cookie;
+        }
 
         const response = await axios.get(targetUrl, {
             headers,

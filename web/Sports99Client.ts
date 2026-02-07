@@ -262,7 +262,10 @@ export class Sports99Client {
     // ---------------------------------------------------------
     // Resolve Stream URL
     // ---------------------------------------------------------
-    public async resolveStreamUrl(playerUrl: string): Promise<string | null> {
+    // ---------------------------------------------------------
+    // Resolve Stream URL
+    // ---------------------------------------------------------
+    public async resolveStreamUrl(playerUrl: string): Promise<{ streamUrl: string, cookies?: string[] } | null> {
         try {
             const headers = {
                 Referer: this.playerReferer,
@@ -276,8 +279,14 @@ export class Sports99Client {
                 return null;
             }
 
-            const result = this.findStreamUrl(js);
-            return result;
+            const streamUrl = this.findStreamUrl(js);
+            if (streamUrl) {
+                // Return cookies if present
+                const cookies = res.headers['set-cookie'];
+                return { streamUrl, cookies };
+            }
+            return null;
+
         } catch (e: any) {
             console.error('[Sports99] Error resolving stream:', e.message);
             return null;
