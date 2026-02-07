@@ -118,12 +118,13 @@ app.get('/api/proxy', async (req, res) => {
 
     try {
         const headers: any = {
-            // Use the same browser UA as the client to avoid 401 Unauthorized
-            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            // Use iPhone User-Agent to try bypassing Datacenter IP blocks/WAFs
+            'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Mobile/15E148 Safari/604.1',
             'Accept': '*/*',
             'Accept-Language': 'en-US,en;q=0.9',
             'Connection': 'keep-alive',
             'Origin': 'https://cdn-live.tv',
+            'Referer': 'https://cdn-live.tv/',
             'Sec-Fetch-Dest': 'empty',
             'Sec-Fetch-Mode': 'cors',
             'Sec-Fetch-Site': 'cross-site',
@@ -249,7 +250,7 @@ app.get('/api/debug-stream', async (req, res) => {
         const cookie = result.cookies && result.cookies.length > 0 ? result.cookies.map(c => c.split(';')[0]).join('; ') : undefined;
 
         const headers: any = {
-            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Mobile/15E148 Safari/604.1',
             'Accept': '*/*',
             'Accept-Language': 'en-US,en;q=0.9',
             'Connection': 'keep-alive',
