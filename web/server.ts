@@ -114,10 +114,9 @@ app.get('/api/proxy', async (req, res) => {
             'Accept': '*/*'
         };
 
-        // Important: Pass the referer if provided (critical for some providers)
-        if (referer) {
-            headers['Referer'] = referer;
-        }
+        // FORCE Referer to 'https://cdn-live.tv/' because the edge server blocks 'streamsports99.su'
+        // The previous logic passed the client's referer, which caused 403 Forbidden.
+        headers['Referer'] = 'https://cdn-live.tv/';
 
         const response = await axios.get(targetUrl, {
             headers,
