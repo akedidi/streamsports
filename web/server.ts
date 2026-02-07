@@ -111,7 +111,15 @@ app.get('/api/proxy', async (req, res) => {
         const headers: any = {
             // Use the same browser UA as the client to avoid 401 Unauthorized
             'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept': '*/*'
+            'Accept': '*/*',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Connection': 'keep-alive',
+            'Origin': 'https://cdn-live.tv',
+            'Sec-Fetch-Dest': 'empty',
+            'Sec-Fetch-Mode': 'cors',
+            'Sec-Fetch-Site': 'cross-site',
+            'Pragma': 'no-cache',
+            'Cache-Control': 'no-cache'
         };
 
         // FORCE Referer to 'https://cdn-live.tv/' because the edge server blocks 'streamsports99.su'
