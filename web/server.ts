@@ -183,9 +183,13 @@ app.get('/api/proxy', async (req, res) => {
                     // Proxy Playlists ONLY (Segments direct for speed)
                     // REVERTED: User reported full proxying was too slow.
                     // This puts the risk of idleReason=4 back on the table if provider checks Referer on segments.
-                    if (absoluteUrl.includes('.m3u8')) {
-                        console.log(`[Proxy] Rewriting Playlist: ${trimmed}`);
-                        return `/api/proxy?url=${encodeURIComponent(absoluteUrl)}&referer=${encodeURIComponent(referer)}`;
+
+                    // CHECK: If 'force_proxy' is set (e.g. for iOS/Native), proxy everything
+                    const forceProxy = req.query.force_proxy === 'true';
+
+                    if (absoluteUrl.includes('.m3u8') || forceProxy) {
+                        console.log(`[Proxy] Rewriting ${forceProxy ? 'Segment (Forced)' : 'Playlist'}: ${trimmed}`);
+                        return `/api/proxy?url=${encodeURIComponent(absoluteUrl)}&referer=${encodeURIComponent(referer)}&force_proxy=${forceProxy}`;
                     } else {
                         // Direct link for segments (Save bandwidth / reduce server load for Browser/iOS)
                         return absoluteUrl;
