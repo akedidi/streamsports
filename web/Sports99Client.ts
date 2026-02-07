@@ -98,9 +98,66 @@ export class Sports99Client {
     // Find Stream URL
     // ---------------------------------------------------------
     private findStreamUrl(jsCode: string): string | null {
-        const pattern = /[\"']([^\"']*index\.m3u8\?token=[^\"']+)[\"']/;
-        const match = jsCode.match(pattern);
-        return match ? match[1] : null;
+        // First try legacy pattern (direct m3u8 URL in quotes)
+        const legacyPattern = /["']([^"']*index\.m3u8\?token=[^"']+)["']/;
+        const legacyMatch = jsCode.match(legacyPattern);
+        if (legacyMatch) {
+            return legacyMatch[1];
+        }
+
+        // New pattern: Base64 encoded URL fragments in variables
+        // Extract all const assignments with Base64 values
+        const varPattern = /const\s+(\w+)\s*=\s*'([A-Za-z0-9+/=_-]+)'/g;
+        const vars: Record<string, string> = {};
+        let varMatch;
+        while ((varMatch = varPattern.exec(jsCode)) !== null) {
+            const [, name, b64Value] = varMatch;
+            try {
+                // Handle URL-safe base64 format
+                let b64 = b64Value.replace(/-/g, '+').replace(/_/g, '/');
+                while (b64.length % 4) b64 += '=';
+                vars[name] = Buffer.from(b64, 'base64').toString('utf8');
+            } catch {
+                vars[name] = b64Value;
+            }
+        }
+
+        // Detect the decoder function name
+        // Pattern: function FunctionName(str) { ... }
+        const funcMatch = jsCode.match(/function\s+(\w+)\(str\)/);
+        const decoderName = funcMatch ? funcMatch[1] : 'jNJVVkAypbee'; // Fallback
+
+        // Match: const varName = decoderName(var1) + decoderName(var2) + ...;
+        // Escape the function name for regex
+        const safeName = decoderName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const concatPattern = new RegExp(`const\\s+\\w+\\s*=\\s*([^;]+${safeName}[^;]+);`, 'g');
+
+        let concatMatch;
+        while ((concatMatch = concatPattern.exec(jsCode)) !== null) {
+            const expression = concatMatch[1];
+
+            // Extract variable names from decoderName(varName) calls
+            const callRegex = new RegExp(`${safeName}\\((\\w+)\\)`, 'g');
+            const varNamesMatch = expression.match(callRegex);
+
+            if (varNamesMatch && varNamesMatch.length > 0) {
+                let url = '';
+                for (const call of varNamesMatch) {
+                    const nameRegex = new RegExp(`${safeName}\\((\\w+)\\)`);
+                    const nameMatch = call.match(nameRegex);
+                    if (nameMatch && vars[nameMatch[1]]) {
+                        url += vars[nameMatch[1]];
+                    }
+                }
+
+                // Check if this looks like a valid stream URL
+                if (url.includes('.m3u8') && url.startsWith('http')) {
+                    return url;
+                }
+            }
+        }
+
+        return null;
     }
 
     // ---------------------------------------------------------
@@ -212,12 +269,15 @@ export class Sports99Client {
                 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
             };
             const res = await axios.get(playerUrl, { headers, timeout: this.timeout });
+
             const js = this.decodeObfuscatedJs(res.data);
             if (!js) {
                 console.warn('[Sports99] Could not decode obfuscated JS');
                 return null;
             }
-            return this.findStreamUrl(js);
+
+            const result = this.findStreamUrl(js);
+            return result;
         } catch (e: any) {
             console.error('[Sports99] Error resolving stream:', e.message);
             return null;
