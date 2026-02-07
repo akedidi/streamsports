@@ -229,6 +229,57 @@ app.get('/api/proxy', async (req, res) => {
     }
 });
 
+// DEBUG API: Test Proxy Functionality Internally
+app.get('/api/debug-stream', async (req, res) => {
+    const playerUrl = req.query.url as string;
+    if (!playerUrl) return res.status(400).send('Missing url');
+
+    try {
+        const result = await client.resolveStreamUrl(playerUrl);
+        if (!result || !result.streamUrl) return res.status(404).send('Resolution failed');
+
+        const targetUrl = result.streamUrl;
+        const cookie = result.cookies && result.cookies.length > 0 ? result.cookies.map(c => c.split(';')[0]).join('; ') : undefined;
+
+        const headers: any = {
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': '*/*',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Connection': 'keep-alive',
+            'Origin': 'https://cdn-live.tv',
+            'Referer': 'https://cdn-live.tv/',
+            'Pragma': 'no-cache',
+            'Cache-Control': 'no-cache'
+        };
+
+        if (cookie) headers['Cookie'] = cookie;
+
+        console.log('[Debug] Fetching:', targetUrl);
+        // console.log('[Debug] Headers:', JSON.stringify(headers, null, 2));
+
+        try {
+            const response = await axios.get(targetUrl, { headers, responseType: 'text' });
+            res.send({
+                status: response.status,
+                headers: response.headers,
+                dataLength: response.data.length,
+                sample: response.data.substring(0, 1000)
+            });
+        } catch (fetchError: any) {
+            console.error('[Debug] Fetch Error:', fetchError.message);
+            res.status(500).send({
+                error: fetchError.message,
+                status: fetchError.response?.status,
+                headers: fetchError.response?.headers,
+                data: fetchError.response?.data ? fetchError.response.data.toString() : null
+            });
+        }
+
+    } catch (e: any) {
+        res.status(500).send({ error: e.message });
+    }
+});
+
 // Export the app for Vercel Serverless
 export default app;
 
