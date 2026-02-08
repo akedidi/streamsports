@@ -1310,7 +1310,8 @@
                     }
 
                     console.log('DEBUG: Fetching EPG Data...');
-                    const res = await fetch('https://kuzwbdweiphaouenogef.supabase.co/functions/v1/epg-data?v=v12');
+                    // Use local proxy to bypass CORS
+                    const res = await fetch('/api/epg?v=v12');
                     const data = await res.json();
 
                     if (data.success) {

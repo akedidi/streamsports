@@ -72,17 +72,32 @@ app.get('/api/stream', async (req, res) => {
         const result = await client.resolveStreamUrl(playerUrl);
 
         if (result && result.streamUrl) {
-            let proxyUrl = `/api/proxy?url=${encodeURIComponent(result.streamUrl)}&referer=${encodeURIComponent(playerUrl)}`;
-            // Pass cookies to proxy if present
-            if (result.cookies && result.cookies.length > 0) {
-                // Simplify cookies to name=value; name2=value2
-                const cookieString = result.cookies.map(c => c.split(';')[0]).join('; ');
-                proxyUrl += `&cookie=${encodeURIComponent(cookieString)}`;
-            }
+            let proxyUrl: string;
 
-            // Propagate force_proxy flag (for iOS/Native)
-            if (req.query.force_proxy === 'true') {
-                proxyUrl += '&force_proxy=true';
+            // Check if URL is already proxied (by Sports99Client)
+            if (result.streamUrl.startsWith('/api/proxy')) {
+                console.log('[API] Stream URL is already proxied, returning as-is');
+                proxyUrl = result.streamUrl;
+
+                // Ensure force_proxy is present if requested
+                if (req.query.force_proxy === 'true' && !proxyUrl.includes('force_proxy=true')) {
+                    proxyUrl += '&force_proxy=true';
+                }
+            } else {
+                // Wrap in proxy
+                proxyUrl = `/api/proxy?url=${encodeURIComponent(result.streamUrl)}&referer=${encodeURIComponent(playerUrl)}`;
+
+                // Pass cookies to proxy if present
+                if (result.cookies && result.cookies.length > 0) {
+                    // Simplify cookies to name=value; name2=value2
+                    const cookieString = result.cookies.map(c => c.split(';')[0]).join('; ');
+                    proxyUrl += `&cookie=${encodeURIComponent(cookieString)}`;
+                }
+
+                // Propagate force_proxy flag (for iOS/Native)
+                if (req.query.force_proxy === 'true') {
+                    proxyUrl += '&force_proxy=true';
+                }
             }
 
             // Expose Raw URL for Chromecast (Residential IP)
