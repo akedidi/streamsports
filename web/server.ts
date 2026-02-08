@@ -164,8 +164,9 @@ app.get('/api/proxy', async (req, res) => {
 
     try {
         const headers: any = {
-            // Use Client's User-Agent or Desktop Chrome to match token generation
-            'User-Agent': userAgent !== 'Unknown' ? userAgent : 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            // FORCE Exact Desktop Chrome UA to match Sports99Client token generation
+            // cdn-live.tv seems to bind the token to the UA significantly.
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             'Accept': '*/*',
             'Accept-Language': 'en-US,en;q=0.9',
             'Connection': 'keep-alive',
