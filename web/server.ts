@@ -164,8 +164,8 @@ app.get('/api/proxy', async (req, res) => {
 
     try {
         const headers: any = {
-            // Use iPhone User-Agent to try bypassing Datacenter IP blocks/WAFs
-            'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Mobile/15E148 Safari/604.1',
+            // Use Client's User-Agent or Desktop Chrome to match token generation
+            'User-Agent': userAgent !== 'Unknown' ? userAgent : 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             'Accept': '*/*',
             'Accept-Language': 'en-US,en;q=0.9',
             'Connection': 'keep-alive',
