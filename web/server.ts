@@ -96,6 +96,32 @@ app.get('/api/stream', async (req, res) => {
     }
 });
 
+// API: EPG Data Proxy (bypass CORS)
+app.get('/api/epg', async (req, res) => {
+    try {
+        const version = req.query.v || 'v12';
+        const epgUrl = `https://kuzwbdweiphaouenogef.supabase.co/functions/v1/epg-data?v=${version}`;
+
+        console.log(`[EPG Proxy] Fetching EPG data (version: ${version})`);
+
+        const response = await axios.get(epgUrl, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+                'Accept': 'application/json'
+            },
+            timeout: 30000
+        });
+
+        // Return EPG data with CORS headers
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Content-Type', 'application/json');
+        res.json(response.data);
+    } catch (error: any) {
+        console.error('[EPG Proxy] Error:', error.message);
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
 // API: Light Proxy
 app.get('/api/proxy', async (req, res) => {
     const targetUrl = req.query.url as string;
