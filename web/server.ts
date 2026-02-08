@@ -190,6 +190,13 @@ app.get('/api/proxy', async (req, res) => {
             headers['Cookie'] = cookie;
         }
 
+        // Forward Client IP (Try to bypass IP checks if Edge server trusts us)
+        const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+        if (clientIp) {
+            headers['X-Forwarded-For'] = clientIp;
+            headers['X-Real-IP'] = clientIp;
+        }
+
         let finalTargetUrl = targetUrl;
         const useExternalProxy = req.query.external_proxy === 'true';
         if (useExternalProxy) {
