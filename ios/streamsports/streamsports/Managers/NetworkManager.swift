@@ -91,10 +91,18 @@ class NetworkManager: ObservableObject {
                 print("[NetworkManager] WebView resolution SUCCESS: \(streamUrl.prefix(80))...")
                 print("[NetworkManager] Using HYBRID approach: proxying resolved URL for stable playback")
                 
-                // HYBRID APPROACH: Build /api/proxy URL directly (not /api/stream)
-                // The streamUrl is already resolved, so we just need to proxy it
-                guard let encodedUrl = streamUrl.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
-                      let proxyUrl = URL(string: "\(self.baseURL)/proxy?url=\(encodedUrl)") else {
+                // HYBRID APPROACH: Build /api/proxy URL with proper encoding
+                // Use URLComponents to correctly encode the target URL as a query parameter
+                guard var components = URLComponents(string: "\(self.baseURL)/proxy") else {
+                    print("[NetworkManager] Failed to create URLComponents")
+                    completion(nil, nil, nil)
+                    return
+                }
+                
+                // URLQueryItem automatically encodes special characters like & and =
+                components.queryItems = [URLQueryItem(name: "url", value: streamUrl)]
+                
+                guard let proxyUrl = components.url else {
                     print("[NetworkManager] Failed to build proxy URL")
                     completion(nil, nil, nil)
                     return
