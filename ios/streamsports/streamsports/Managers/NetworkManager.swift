@@ -104,8 +104,9 @@ class NetworkManager: ObservableObject {
                 components.queryItems = [
                     URLQueryItem(name: "url", value: streamUrl),
                     URLQueryItem(name: "referer", value: "https://cdn-live.tv/"),
-                    // force_proxy=false: Proxy playlist only, segments direct
-                    URLQueryItem(name: "force_proxy", value: "false") 
+                    // REVERTED: Direct fetch failed with SSL error -12939 despite ATS.
+                    // Must use proxy (now optimized with pipe/stream) for all segments.
+                    URLQueryItem(name: "force_proxy", value: "true") 
                 ]
                 // Add cookie if available
                 if let cookie = cookie {
