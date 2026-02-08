@@ -32,7 +32,8 @@ export class Sports99Client {
         this.user = user;
         this.plan = plan;
         this.baseApi = "https://api.cdn-live.tv/api/v1";
-        this.playerReferer = "https://streamsports99.su/";
+        // Match Referer with server.ts proxy to avoid session mismatch
+        this.playerReferer = "https://cdn-live.tv/";
         this.timeout = timeout;
     }
 
