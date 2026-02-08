@@ -304,19 +304,32 @@ app.get('/api/proxy', async (req, res) => {
                 res.send(finalContent);
             });
 
+            // Handle errors during M3U8 buffering
             response.data.on('error', (err: any) => {
-                console.error('[Proxy] Error reading M3U8 stream:', err);
-                res.end();
+                console.error('[Proxy] Error buffering M3U8:', err.message);
+                if (!res.headersSent) res.status(500).send('Error buffering playlist');
             });
 
         } else {
             // Binary content (segments) - PIPE DIRECTLY!
             // console.log(`[Proxy] Piping Binary Content (${contentType})`);
+            // Handle pipe errors
             response.data.pipe(res);
 
             response.data.on('error', (err: any) => {
-                console.error('[Proxy] Stream error:', err);
-                res.end();
+                console.error('[Proxy] Stream Error (Upstream):', err.message);
+                if (!res.headersSent) res.end();
+            });
+
+            res.on('close', () => {
+                // Client disconnected, stop upstream stream
+                // console.log('[Proxy] Client disconnected, destroying stream');
+                response.data.destroy();
+            });
+
+            res.on('error', (err: any) => {
+                console.error('[Proxy] Response Error (Downstream):', err.message);
+                response.data.destroy();
             });
         }
 
