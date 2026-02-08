@@ -113,11 +113,7 @@ class NetworkManager: ObservableObject {
                     print("[NetworkManager] Including cookie in proxy request")
                 }
                 
-                // CRITICAL: Add force_proxy=true to proxy ALL segments, not just playlists
-                // Without this, segments (.ts files) are served directly without auth
-                queryItems.append(URLQueryItem(name: "force_proxy", value: "true"))
-                
-                components.queryItems = queryItems
+                // (force_proxy is already set above)
                 
                 guard let proxyUrl = components.url else {
                     print("[NetworkManager] Failed to build proxy URL")
