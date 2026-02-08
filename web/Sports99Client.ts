@@ -32,8 +32,11 @@ export class Sports99Client {
         this.user = user;
         this.plan = plan;
         this.baseApi = "https://api.cdn-live.tv/api/v1";
-        // Match Referer with server.ts proxy to avoid session mismatch
-        this.playerReferer = "https://cdn-live.tv/";
+        // Browser behavior: 
+        // 1. Resolution (Page Load): Referer = streamsports99.su (Embedding site)
+        // 2. Playback (Stream): Referer = cdn-live.tv (Player origin)
+        // So we revert this to the embedding site, while keeping UA matched.
+        this.playerReferer = "https://streamsports99.su/";
         this.timeout = timeout;
     }
 
