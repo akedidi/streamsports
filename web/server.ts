@@ -198,7 +198,9 @@ app.get('/api/proxy', async (req, res) => {
 
                     if (absoluteUrl.includes('.m3u8') || forceProxy) {
                         console.log(`[Proxy] Rewriting ${forceProxy ? 'Segment (Forced)' : 'Playlist'}: ${trimmed}`);
-                        return `/api/proxy?url=${encodeURIComponent(absoluteUrl)}&referer=${encodeURIComponent(referer)}&force_proxy=${forceProxy}`;
+                        // CRITICAL: Propagate cookie to rewritten URLs for authenticated access
+                        const cookieParam = cookie ? `&cookie=${encodeURIComponent(cookie)}` : '';
+                        return `/api/proxy?url=${encodeURIComponent(absoluteUrl)}&referer=${encodeURIComponent(referer)}&force_proxy=${forceProxy}${cookieParam}`;
                     } else {
                         // Direct link for segments (Save bandwidth / reduce server load for Browser/iOS)
                         return absoluteUrl;

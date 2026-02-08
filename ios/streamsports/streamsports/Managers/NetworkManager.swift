@@ -92,7 +92,7 @@ class NetworkManager: ObservableObject {
                 print("[NetworkManager] Using HYBRID approach: proxying resolved URL for stable playback")
                 
                 // HYBRID APPROACH: Build /api/proxy URL with proper encoding
-                // The server requires: url, referer, and cookie parameters
+                // The server requires: url, referer, cookie, and force_proxy parameters
                 guard var components = URLComponents(string: "\(self.baseURL)/proxy") else {
                     print("[NetworkManager] Failed to create URLComponents")
                     completion(nil, nil, nil)
@@ -110,6 +110,10 @@ class NetworkManager: ObservableObject {
                     queryItems.append(URLQueryItem(name: "cookie", value: cookie))
                     print("[NetworkManager] Including cookie in proxy request")
                 }
+                
+                // CRITICAL: Add force_proxy=true to proxy ALL segments, not just playlists
+                // Without this, segments (.ts files) are served directly without auth
+                queryItems.append(URLQueryItem(name: "force_proxy", value: "true"))
                 
                 components.queryItems = queryItems
                 
