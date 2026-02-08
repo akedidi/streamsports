@@ -83,7 +83,7 @@ class NetworkManager: ObservableObject {
     
     /// Resolves a cdn-live.tv stream using hybrid WebView + Proxy approach
     /// 1. WebView resolves the player page → gets M3U8 URL with token bound to iPhone IP
-    /// 2. Proxy fetches the resolved URL → bypasses SSL/auth issues
+    /// 2. Proxy fetches the resolved URL directly via /api/proxy → bypasses SSL/auth issues
     /// 3. AVPlayer plays via proxy → stable playback
     private func resolveDirectly(url: String, completion: @escaping (String?, String?, String?) -> Void) {
         WebViewStreamResolver.shared.resolve(playerUrl: url) { streamUrl, cookie in
@@ -91,9 +91,22 @@ class NetworkManager: ObservableObject {
                 print("[NetworkManager] WebView resolution SUCCESS: \(streamUrl.prefix(80))...")
                 print("[NetworkManager] Using HYBRID approach: proxying resolved URL for stable playback")
                 
-                // HYBRID APPROACH: Use proxy with the resolved URL
-                // This combines WebView token generation (iPhone IP) with proxy stability (no SSL issues)
-                self.resolveViaProxy(url: streamUrl, cookie: cookie, completion: completion)
+                // HYBRID APPROACH: Build /api/proxy URL directly (not /api/stream)
+                // The streamUrl is already resolved, so we just need to proxy it
+                guard let encodedUrl = streamUrl.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
+                      let proxyUrl = URL(string: "\(self.baseURL)/proxy?url=\(encodedUrl)") else {
+                    print("[NetworkManager] Failed to build proxy URL")
+                    completion(nil, nil, nil)
+                    return
+                }
+                
+                let proxyUrlString = proxyUrl.absoluteString
+                print("[NetworkManager] Proxy URL: \(proxyUrlString.prefix(120))...")
+                
+                DispatchQueue.main.async {
+                    // Return proxy URL for playback
+                    completion(proxyUrlString, streamUrl, cookie)
+                }
             } else {
                 print("[NetworkManager] WebView resolution FAILED, falling back to full proxy")
                 // Fall back to full proxy resolution of original player URL
