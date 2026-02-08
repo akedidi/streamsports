@@ -286,9 +286,29 @@ export class Sports99Client {
 
             const streamUrl = this.findStreamUrl(js);
             if (streamUrl) {
-                // Return cookies if present
+                // Extract cookies if present
                 const cookies = res.headers['set-cookie'];
-                return { streamUrl, cookies };
+
+                // HYBRID APPROACH (like iOS): Wrap stream in proxy for stable playback
+                // Build proxy URL with force_proxy=true to ensure ALL segments are proxied
+                const proxyParams = new URLSearchParams({
+                    url: streamUrl,
+                    referer: 'https://cdn-live.tv/',
+                    force_proxy: 'true'
+                });
+
+                // Add cookie if available
+                if (cookies && cookies.length > 0) {
+                    // Extract cookie values (remove attributes like Path, HttpOnly, etc.)
+                    const cookieValue = cookies.map(c => c.split(';')[0]).join('; ');
+                    proxyParams.append('cookie', cookieValue);
+                    console.log('[Sports99] Including cookie in proxy request');
+                }
+
+                const proxyUrl = `/api/proxy?${proxyParams.toString()}`;
+                console.log(`[Sports99] Using HYBRID approach: proxying resolved URL for stable playback`);
+
+                return { streamUrl: proxyUrl, cookies };
             }
             return null;
 
