@@ -276,6 +276,7 @@ app.get('/api/proxy', async (req, res) => {
 
                     // Case 2: Tag with URI="..." 
                     if (trimmed.startsWith('#') && trimmed.includes('URI=')) {
+                        const forceProxy = req.query.force_proxy === 'true';
                         return trimmed.replace(/URI=["']([^"']+)["']/g, (match, uri) => {
                             let absoluteUrl = uri;
                             if (!uri.startsWith('http')) {
@@ -286,9 +287,11 @@ app.get('/api/proxy', async (req, res) => {
                                 trimmed.startsWith('#EXT-X-MAP') ||
                                 trimmed.startsWith('#EXT-X-MEDIA');
 
-                            if (absoluteUrl.includes('.m3u8') || isSensitiveTag) {
-                                // console.log(`[Proxy] Rewriting Tag URI (${trimmed.split(':')[0]}): ${uri}`);
-                                const proxyUri = `/api/proxy?url=${encodeURIComponent(absoluteUrl)}&referer=${encodeURIComponent(referer)}`;
+                            // CRITICAL: Always proxy Tag URIs if force_proxy is set OR if it's a sensitive tag
+                            if (absoluteUrl.includes('.m3u8') || isSensitiveTag || forceProxy) {
+                                // FIXED: Propagate force_proxy and cookie to nested requests
+                                const cookieParam = cookie ? `&cookie=${encodeURIComponent(cookie)}` : '';
+                                const proxyUri = `/api/proxy?url=${encodeURIComponent(absoluteUrl)}&referer=${encodeURIComponent(referer)}&force_proxy=${forceProxy}${cookieParam}`;
                                 return `URI="${proxyUri}"`;
                             }
                             return `URI="${absoluteUrl}"`;
