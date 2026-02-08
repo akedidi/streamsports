@@ -139,7 +139,11 @@ app.get('/api/proxy', async (req, res) => {
 
         // FORCE Referer to 'https://cdn-live.tv/' because the edge server blocks 'streamsports99.su'
         // The previous logic passed the client's referer, which caused 403 Forbidden.
-        headers['Referer'] = 'https://cdn-live.tv/';
+        // TEST: Let's try trusting the passed referer (which is the player URL) instead of forcing root.
+        // headers['Referer'] = 'https://cdn-live.tv/';
+        if (referer) {
+            headers['Referer'] = referer;
+        }
 
         if (cookie) {
             headers['Cookie'] = cookie;
