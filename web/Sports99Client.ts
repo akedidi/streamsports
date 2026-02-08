@@ -269,15 +269,18 @@ export class Sports99Client {
     // ---------------------------------------------------------
     // Resolve Stream URL
     // ---------------------------------------------------------
-    public async resolveStreamUrl(playerUrl: string): Promise<{ streamUrl: string, cookies?: string[] } | null> {
+    public async resolveStreamUrl(playerUrl: string, clientIp?: string): Promise<{ streamUrl: string, cookies?: string[] } | null> {
         try {
-            const headers = {
+            const headers: any = {
                 Referer: this.playerReferer,
                 // Match User-Agent with standard Browser to avoid mismatch during playback
-                // The proxy in server.ts will also need to be updated to match this if it overrides it.
-                // But for now, let's try Desktop UA.
                 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
             };
+
+            if (clientIp) {
+                headers['X-Forwarded-For'] = clientIp;
+                headers['X-Real-IP'] = clientIp;
+            }
             const res = await axios.get(playerUrl, { headers, timeout: this.timeout });
 
             const js = this.decodeObfuscatedJs(res.data);

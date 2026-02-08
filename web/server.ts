@@ -337,49 +337,37 @@ app.get('/api/debug-stream', async (req, res) => {
     const playerUrl = req.query.url as string;
     if (!playerUrl) return res.status(400).send('Missing url');
 
+    // Extract Client IP (from Vercel/Proxy headers)
+    const clientIp = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress;
+
+    const headers: any = {
+        // MATCHING Sports99Client User-Agent
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Referer': 'https://streamsports99.su/',
+    };
+
+    if (clientIp) {
+        headers['X-Forwarded-For'] = clientIp;
+        headers['X-Real-IP'] = clientIp;
+    }
+
     try {
-        const result = await client.resolveStreamUrl(playerUrl);
-        if (!result || !result.streamUrl) return res.status(404).send('Resolution failed');
-
-        const targetUrl = result.streamUrl;
-        const cookie = result.cookies && result.cookies.length > 0 ? result.cookies.map(c => c.split(';')[0]).join('; ') : undefined;
-
-        const headers: any = {
-            'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Mobile/15E148 Safari/604.1',
-            'Accept': '*/*',
-            'Accept-Language': 'en-US,en;q=0.9',
-            'Connection': 'keep-alive',
-            'Origin': 'https://cdn-live.tv',
-            'Referer': 'https://cdn-live.tv/',
-            'Pragma': 'no-cache',
-            'Cache-Control': 'no-cache'
-        };
-
-        if (cookie) headers['Cookie'] = cookie;
-
-        console.log('[Debug] Fetching:', targetUrl);
-        // console.log('[Debug] Headers:', JSON.stringify(headers, null, 2));
-
-        try {
-            const response = await axios.get(targetUrl, { headers, responseType: 'text' });
-            res.send({
-                status: response.status,
-                headers: response.headers,
-                dataLength: response.data.length,
-                sample: response.data.substring(0, 1000)
-            });
-        } catch (fetchError: any) {
-            console.error('[Debug] Fetch Error:', fetchError.message);
-            res.status(500).send({
-                error: fetchError.message,
-                status: fetchError.response?.status,
-                headers: fetchError.response?.headers,
-                data: fetchError.response?.data ? fetchError.response.data.toString() : null
-            });
-        }
-
+        const response = await axios.get(playerUrl, { headers, timeout: 5000, responseType: 'text' });
+        res.send({
+            status: response.status,
+            headers: response.headers,
+            dataLength: response.data.length,
+            preview: response.data.substring(0, 500)
+        });
     } catch (e: any) {
-        res.status(500).send({ error: e.message });
+        res.status(500).send({
+            error: e.message,
+            response: e.response ? {
+                status: e.response.status,
+                headers: e.response.headers,
+                data: e.response.data
+            } : null
+        });
     }
 });
 
