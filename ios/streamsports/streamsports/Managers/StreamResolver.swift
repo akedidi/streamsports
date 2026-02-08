@@ -1,99 +1,239 @@
 import Foundation
-import WebKit
 
-class StreamResolver: NSObject, WKNavigationDelegate {
+/// Direct stream resolver for cdn-live.tv
+/// Ports the JavaScript decoding logic from Sports99Client.ts to Swift
+/// This allows iOS to resolve streams directly, avoiding IP binding issues with proxies
+class StreamResolver {
+    
     static let shared = StreamResolver()
     
-    private var webView: WKWebView?
-    private var completion: ((String?) -> Void)?
-    private var timer: Timer?
+    private let userAgent = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Mobile/15E148 Safari/604.1"
+    private let referer = "https://streamsports99.su/"
     
-    override init() {
-        super.init()
-        let config = WKWebViewConfiguration()
-        config.websiteDataStore = .default() // Use default storage for cookies
-        config.applicationNameForUserAgent = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
-        
-        self.webView = WKWebView(frame: .zero, configuration: config)
-        self.webView?.navigationDelegate = self
-    }
+    // MARK: - Public API
     
-    func resolve(url: String, completion: @escaping (String?) -> Void) {
-        guard let targetURL = URL(string: url) else {
-            completion(nil)
+    /// Resolves a player URL to get the actual M3U8 stream URL
+    /// - Parameters:
+    ///   - playerUrl: The cdn-live.tv player URL (e.g., https://cdn-live.tv/api/v1/channels/player/?name=abc&code=us...)
+    ///   - completion: Callback with (streamUrl, cookie) or (nil, nil) on failure
+    func resolve(playerUrl: String, completion: @escaping (String?, String?) -> Void) {
+        guard let url = URL(string: playerUrl) else {
+            print("[StreamResolver] Invalid player URL")
+            completion(nil, nil)
             return
         }
         
-        print("[StreamResolver] Starting resolution via WebView for: \(url)")
-        self.completion = completion
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
+        request.setValue(referer, forHTTPHeaderField: "Referer")
+        request.setValue("*/*", forHTTPHeaderField: "Accept")
+        request.setValue("en-US,en;q=0.9", forHTTPHeaderField: "Accept-Language")
         
-        DispatchQueue.main.async {
-            // Load request
-            var req = URLRequest(url: targetURL)
-            req.setValue("https://cdn-live.tv/", forHTTPHeaderField: "Referer")
-            self.webView?.load(req)
+        URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
+            guard let self = self else { return }
             
-            // Timeout safety
-            self.timer?.invalidate()
-            self.timer = Timer.scheduledTimer(withTimeInterval: 15.0, repeats: false) { [weak self] _ in
-                print("[StreamResolver] Timeout reached")
-                self?.finish(with: nil)
+            guard let data = data, let html = String(data: data, encoding: .utf8), error == nil else {
+                print("[StreamResolver] Failed to fetch player page: \(error?.localizedDescription ?? "Unknown")")
+                completion(nil, nil)
+                return
             }
-        }
+            
+            // Extract cookie from response
+            var cookie: String?
+            if let httpResponse = response as? HTTPURLResponse,
+               let setCookie = httpResponse.allHeaderFields["Set-Cookie"] as? String {
+                // Extract just the session cookie name=value
+                cookie = setCookie.components(separatedBy: ";").first
+            }
+            
+            // Decode the obfuscated JavaScript
+            guard let decodedJs = self.decodeObfuscatedJs(html: html) else {
+                print("[StreamResolver] Failed to decode obfuscated JS")
+                completion(nil, nil)
+                return
+            }
+            
+            // Find the stream URL
+            guard let streamUrl = self.findStreamUrl(jsCode: decodedJs) else {
+                print("[StreamResolver] Failed to find stream URL in decoded JS")
+                completion(nil, nil)
+                return
+            }
+            
+            print("[StreamResolver] ✅ Resolved: \(streamUrl.prefix(80))...")
+            completion(streamUrl, cookie)
+            
+        }.resume()
     }
     
-    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-        print("[StreamResolver] Page loaded, extracting HTML...")
+    // MARK: - Private Decoding Logic
+    
+    /// Converts a string from a custom base to decimal
+    private func convertBase(_ s: String, base: Int) -> Int {
+        var result = 0
+        let reversed = Array(s.reversed())
+        for (i, char) in reversed.enumerated() {
+            if let digit = Int(String(char)) {
+                result += digit * Int(pow(Double(base), Double(i)))
+            }
+        }
+        return result
+    }
+    
+    /// Decodes the obfuscated JavaScript from the player page
+    private func decodeObfuscatedJs(html: String) -> String? {
+        // Find the start marker: }("
+        let startMarker = "}(\""
+        guard let startRange = html.range(of: startMarker) else {
+            print("[StreamResolver] Start marker not found")
+            return nil
+        }
         
-        // Wait a small moment for JS to potentially execute/redirect if needed
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-            webView.evaluateJavaScript("document.documentElement.outerHTML") { [weak self] (result, error) in
-                guard let html = result as? String else {
-                    print("[StreamResolver] Failed to get HTML: \(String(describing: error))")
-                    self?.finish(with: nil)
-                    return
-                }
-                
-                // Parse Regex
-                // Pattern matches: "url": "..." OR index.m3u8?token=...
-                // The pattern used in client: /[\"']([^\"']*index\.m3u8\?token=[^\"']+)[\"']/
-                let pattern = "[\"']([^\"']*index\\.m3u8\\?token=[^\"']+)[\"']"
-                
-                // Also try finding it in a raw console log or variable if the simple regex fails
-                // But let's try the regex first
-                
-                let range = NSRange(location: 0, length: html.utf16.count)
-                if let regex = try? NSRegularExpression(pattern: pattern, options: []),
-                   let match = regex.firstMatch(in: html, options: [], range: range),
-                   let r = Range(match.range(at: 1), in: html) {
+        let actualStart = startRange.upperBound
+        
+        // Find the end marker: ",
+        guard let endRange = html.range(of: "\",", range: actualStart..<html.endIndex) else {
+            print("[StreamResolver] End marker not found")
+            return nil
+        }
+        
+        let encoded = String(html[actualStart..<endRange.lowerBound])
+        
+        // Extract parameters after the encoded string
+        let paramsStart = endRange.upperBound
+        let paramsEnd = html.index(paramsStart, offsetBy: min(100, html.distance(from: paramsStart, to: html.endIndex)))
+        let params = String(html[paramsStart..<paramsEnd])
+        
+        // Match: digits, "charset", offset, base, extra
+        // Pattern: (\d+),\s*"([^"]+)",\s*(\d+),\s*(\d+),\s*(\d+)
+        let pattern = #"(\d+),\s*"([^"]+)",\s*(\d+),\s*(\d+),\s*(\d+)"#
+        guard let regex = try? NSRegularExpression(pattern: pattern),
+              let match = regex.firstMatch(in: params, range: NSRange(params.startIndex..., in: params)) else {
+            print("[StreamResolver] Parameters not found")
+            return nil
+        }
+        
+        guard let charsetRange = Range(match.range(at: 2), in: params),
+              let offsetRange = Range(match.range(at: 3), in: params),
+              let baseRange = Range(match.range(at: 4), in: params) else {
+            return nil
+        }
+        
+        let charset = String(params[charsetRange])
+        guard let offset = Int(params[offsetRange]),
+              let base = Int(params[baseRange]) else {
+            return nil
+        }
+        
+        // Split by charset[base] character (the delimiter)
+        guard base < charset.count else { return nil }
+        let delimiterIndex = charset.index(charset.startIndex, offsetBy: base)
+        let delimiter = String(charset[delimiterIndex])
+        
+        let parts = encoded.components(separatedBy: delimiter)
+        
+        var decoded = ""
+        for part in parts where !part.isEmpty {
+            var temp = part
+            // Replace each charset character with its index
+            for (idx, char) in charset.enumerated() {
+                temp = temp.replacingOccurrences(of: String(char), with: String(idx))
+            }
+            let val = convertBase(temp, base: base)
+            if val > offset, let scalar = UnicodeScalar(val - offset) {
+                decoded += String(Character(scalar))
+            }
+        }
+        
+        // Try to URL decode
+        return decoded.removingPercentEncoding ?? decoded
+    }
+    
+    /// Finds the M3U8 stream URL in the decoded JavaScript
+    private func findStreamUrl(jsCode: String) -> String? {
+        // First try legacy pattern: direct m3u8 URL in quotes
+        let legacyPattern = #"["']([^"']*index\.m3u8\?token=[^"']+)["']"#
+        if let regex = try? NSRegularExpression(pattern: legacyPattern),
+           let match = regex.firstMatch(in: jsCode, range: NSRange(jsCode.startIndex..., in: jsCode)),
+           let range = Range(match.range(at: 1), in: jsCode) {
+            return String(jsCode[range])
+        }
+        
+        // New pattern: Base64 encoded URL fragments in variables
+        // Extract all const assignments with Base64 values
+        let varPattern = #"const\s+(\w+)\s*=\s*'([A-Za-z0-9+/=_-]+)'"#
+        var vars: [String: String] = [:]
+        
+        if let regex = try? NSRegularExpression(pattern: varPattern) {
+            let matches = regex.matches(in: jsCode, range: NSRange(jsCode.startIndex..., in: jsCode))
+            for match in matches {
+                if let nameRange = Range(match.range(at: 1), in: jsCode),
+                   let valueRange = Range(match.range(at: 2), in: jsCode) {
+                    let name = String(jsCode[nameRange])
+                    var b64Value = String(jsCode[valueRange])
                     
-                    let streamUrl = String(html[r])
-                    print("[StreamResolver] FOUND TOKEN via WebView: \(streamUrl)")
-                    self?.finish(with: streamUrl)
-                } else {
-                    print("[StreamResolver] No m3u8 token found in WebView HTML.")
-                    // print("HTML Dump: \(html.prefix(500))...") 
-                    self?.finish(with: nil)
+                    // Handle URL-safe base64 format
+                    b64Value = b64Value.replacingOccurrences(of: "-", with: "+")
+                    b64Value = b64Value.replacingOccurrences(of: "_", with: "/")
+                    while b64Value.count % 4 != 0 {
+                        b64Value += "="
+                    }
+                    
+                    if let data = Data(base64Encoded: b64Value),
+                       let decoded = String(data: data, encoding: .utf8) {
+                        vars[name] = decoded
+                    } else {
+                        vars[name] = String(jsCode[valueRange])
+                    }
                 }
             }
         }
-    }
-    
-    func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
-        print("[StreamResolver] Navigation failed: \(error)")
-        finish(with: nil)
-    }
-    
-    private func finish(with url: String?) {
-        timer?.invalidate()
-        timer = nil
-        // self.webView?.stopLoading() // Keep it alive for next request? Reseting is better?
         
-        if let c = completion {
-            DispatchQueue.main.async {
-                c(url)
+        // Detect the decoder function name: function FunctionName(str)
+        let funcPattern = #"function\s+(\w+)\(str\)"#
+        var decoderName = "jNJVVkAypbee" // Fallback
+        if let regex = try? NSRegularExpression(pattern: funcPattern),
+           let match = regex.firstMatch(in: jsCode, range: NSRange(jsCode.startIndex..., in: jsCode)),
+           let range = Range(match.range(at: 1), in: jsCode) {
+            decoderName = String(jsCode[range])
+        }
+        
+        // Match: const varName = decoderName(var1) + decoderName(var2) + ...;
+        let escapedName = NSRegularExpression.escapedPattern(for: decoderName)
+        let concatPattern = "const\\s+\\w+\\s*=\\s*([^;]+\(escapedName)[^;]+);"
+        
+        if let regex = try? NSRegularExpression(pattern: concatPattern) {
+            let matches = regex.matches(in: jsCode, range: NSRange(jsCode.startIndex..., in: jsCode))
+            
+            for match in matches {
+                if let exprRange = Range(match.range(at: 1), in: jsCode) {
+                    let expression = String(jsCode[exprRange])
+                    
+                    // Extract variable names from decoderName(varName) calls
+                    let callPattern = "\(escapedName)\\((\\w+)\\)"
+                    if let callRegex = try? NSRegularExpression(pattern: callPattern) {
+                        let callMatches = callRegex.matches(in: expression, range: NSRange(expression.startIndex..., in: expression))
+                        
+                        var url = ""
+                        for callMatch in callMatches {
+                            if let varNameRange = Range(callMatch.range(at: 1), in: expression) {
+                                let varName = String(expression[varNameRange])
+                                if let value = vars[varName] {
+                                    url += value
+                                }
+                            }
+                        }
+                        
+                        // Check if this looks like a valid stream URL
+                        if url.contains(".m3u8") && url.hasPrefix("http") {
+                            return url
+                        }
+                    }
+                }
             }
         }
-        completion = nil
+        
+        return nil
     }
 }

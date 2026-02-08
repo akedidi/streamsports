@@ -78,10 +78,11 @@ class PlayerManager: ObservableObject {
             guard let self = self else { return }
             
             DispatchQueue.main.async {
-                // Revert to Proxy URL for stability
-                // The backend proxy handles Referer/User-Agent/Cookie injection and playlist rewriting
-                // which is more reliable than direct playback for complex streams (WAF/Session checks)
-                let urlToUseStr = resolvedUrl ?? rawUrl
+                // Determine playback mode:
+                // - If resolvedUrl exists: Use proxy (backend handles headers)
+                // - If only rawUrl exists: Direct playback with injected headers
+                let isDirectPlayback = (resolvedUrl == nil && rawUrl != nil)
+                let urlToUseStr = isDirectPlayback ? rawUrl : (resolvedUrl ?? rawUrl)
                 
                 guard let urlStr = urlToUseStr, let url = URL(string: urlStr) else {
                     print("[PlayerManager] Failed to resolve URL")
@@ -97,7 +98,7 @@ class PlayerManager: ObservableObject {
                     return
                 }
                 
-                print("[PlayerManager] Playing URL: \(url) (Proxy: \(resolvedUrl != nil))")
+                print("[PlayerManager] Playing URL: \(url) (Mode: \(isDirectPlayback ? "DIRECT" : "PROXY"))")
                 
                 // Animate Presentation
                 withAnimation(.spring()) {
@@ -108,8 +109,33 @@ class PlayerManager: ObservableObject {
                     self.offset = 0
                 }
                 
-                // Simple AVPlayer init - Proxy handles headers
-                let asset = AVURLAsset(url: url)
+                // Create AVURLAsset - with headers for direct playback
+                let asset: AVURLAsset
+                if isDirectPlayback {
+                    // DIRECT PLAYBACK: Inject headers and cookies
+                    var options: [String: Any] = [:]
+                    
+                    // Build headers dictionary
+                    var headers: [String: String] = [
+                        "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Mobile/15E148 Safari/604.1",
+                        "Referer": "https://cdn-live.tv/",
+                        "Accept": "*/*",
+                        "Accept-Language": "en-US,en;q=0.9"
+                    ]
+                    
+                    // Add cookie if available
+                    if let cookie = cookie, !cookie.isEmpty {
+                        headers["Cookie"] = cookie
+                    }
+                    
+                    options[AVURLAssetHTTPHeaderFieldsKey] = headers
+                    asset = AVURLAsset(url: url, options: options)
+                    print("[PlayerManager] Direct playback with headers: \(headers.keys.joined(separator: ", "))")
+                } else {
+                    // PROXY PLAYBACK: No headers needed, proxy handles them
+                    asset = AVURLAsset(url: url)
+                }
+                
                 let item = AVPlayerItem(asset: asset)
                 self.player = AVPlayer(playerItem: item)
                 

@@ -67,12 +67,43 @@ class NetworkManager: ObservableObject {
         }.resume()
     }
     
+    /// Resolves a stream URL for playback
+    /// For cdn-live.tv streams, uses direct resolution on-device to avoid IP binding issues
+    /// For other streams, falls back to the backend proxy
     func resolveStream(url: String, completion: @escaping (String?, String?, String?) -> Void) {
-        // We must properly encoding the URL parameter so that & and ? are escaped.
-        // .urlQueryAllowed DOES NOT escape & and ?, which breaks the backend parsing.
-        
-        // Use URLComponents to properly encode the query parameter
-        // The backend expects 'url' to be the full target URL.
+        // Check if this is a cdn-live.tv stream that we can resolve directly
+        if url.contains("cdn-live.tv") {
+            print("[NetworkManager] Using DIRECT resolution for cdn-live.tv")
+            resolveDirectly(url: url, completion: completion)
+        } else {
+            print("[NetworkManager] Using PROXY resolution for non-cdn-live stream")
+            resolveViaProxy(url: url, completion: completion)
+        }
+    }
+    
+    /// Resolves a cdn-live.tv stream directly on-device
+    /// This avoids IP binding issues since the token is generated for the device's IP
+    private func resolveDirectly(url: String, completion: @escaping (String?, String?, String?) -> Void) {
+        StreamResolver.shared.resolve(playerUrl: url) { streamUrl, cookie in
+            if let streamUrl = streamUrl {
+                print("[NetworkManager] Direct resolution SUCCESS: \(streamUrl.prefix(80))...")
+                // For direct resolution, we return:
+                // - proxyUrl: nil (no proxy needed)
+                // - rawUrl: the actual M3U8 stream URL
+                // - cookie: the session cookie
+                DispatchQueue.main.async {
+                    completion(nil, streamUrl, cookie)
+                }
+            } else {
+                print("[NetworkManager] Direct resolution FAILED, falling back to proxy")
+                // Fall back to proxy resolution
+                self.resolveViaProxy(url: url, completion: completion)
+            }
+        }
+    }
+    
+    /// Resolves a stream via the backend proxy (fallback)
+    private func resolveViaProxy(url: String, completion: @escaping (String?, String?, String?) -> Void) {
         guard var components = URLComponents(string: "\(baseURL)/stream") else {
              print("[NetworkManager] Invalid Base URL")
              completion(nil, nil, nil)
@@ -81,7 +112,7 @@ class NetworkManager: ObservableObject {
         
         components.queryItems = [
             URLQueryItem(name: "url", value: url),
-            URLQueryItem(name: "force_proxy", value: "true") // Force full proxy for iOS AVPlayer
+            URLQueryItem(name: "force_proxy", value: "true")
         ]
         
         guard let apiURL = components.url else {
@@ -111,12 +142,9 @@ class NetworkManager: ObservableObject {
                 
                 if let streamPath = response.streamUrl {
                     print("[NetworkManager] Found path: \(streamPath)")
-                    // streamPath is like "/api/proxy?..."
-                    // We need to prepend the domain if it's relative
                     if streamPath.hasPrefix("http") {
                         finalProxyUrl = streamPath
                     } else {
-                        // Construct full URL using the same host as baseURL (minus /api)
                         let host = "https://streamsports-wine.vercel.app"
                         finalProxyUrl = "\(host)\(streamPath)"
                     }
@@ -133,3 +161,4 @@ class NetworkManager: ObservableObject {
         }.resume()
     }
 }
+
