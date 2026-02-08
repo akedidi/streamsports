@@ -125,6 +125,7 @@ struct StreamResponse: Codable {
     let success: Bool
     let streamUrl: String?
     let rawUrl: String?
+    let cookie: String?
     let message: String?
 }
 

@@ -74,11 +74,16 @@ class PlayerManager: ObservableObject {
         
         // 4. Local Playback Logic
         print("[PlayerManager] Resolving stream for: \(channel.url)")
-        NetworkManager.shared.resolveStream(url: channel.url) { [weak self] resolvedUrl, _ in
+        NetworkManager.shared.resolveStream(url: channel.url) { [weak self] resolvedUrl, rawUrl, cookie in
             guard let self = self else { return }
             
             DispatchQueue.main.async {
-                guard let urlStr = resolvedUrl, let url = URL(string: urlStr) else {
+                // Revert to Proxy URL for stability
+                // The backend proxy handles Referer/User-Agent/Cookie injection and playlist rewriting
+                // which is more reliable than direct playback for complex streams (WAF/Session checks)
+                let urlToUseStr = resolvedUrl ?? rawUrl
+                
+                guard let urlStr = urlToUseStr, let url = URL(string: urlStr) else {
                     print("[PlayerManager] Failed to resolve URL")
                     return
                 }
@@ -92,7 +97,7 @@ class PlayerManager: ObservableObject {
                     return
                 }
                 
-                print("[PlayerManager] Playing URL: \(url)")
+                print("[PlayerManager] Playing URL: \(url) (Proxy: \(resolvedUrl != nil))")
                 
                 // Animate Presentation
                 withAnimation(.spring()) {
@@ -103,7 +108,9 @@ class PlayerManager: ObservableObject {
                     self.offset = 0
                 }
                 
-                let item = AVPlayerItem(url: url)
+                // Simple AVPlayer init - Proxy handles headers
+                let asset = AVURLAsset(url: url)
+                let item = AVPlayerItem(asset: asset)
                 self.player = AVPlayer(playerItem: item)
                 
                 // Observe Buffering State
@@ -357,7 +364,7 @@ class PlayerManager: ObservableObject {
         }
         
         // Resolve the PROXY URL (same as web)
-        NetworkManager.shared.resolveStream(url: channel.url) { [weak self] proxyUrl, rawUrl in
+        NetworkManager.shared.resolveStream(url: channel.url) { [weak self] proxyUrl, rawUrl, _ in
             // Fallback to rawUrl if proxyUrl is missing.
             // Priority: PROXY (Fixed to handle headers/segments) -> RAW (Backup)
             guard let urlStr = proxyUrl ?? rawUrl, let url = URL(string: urlStr) else {

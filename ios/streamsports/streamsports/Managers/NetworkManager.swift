@@ -67,7 +67,7 @@ class NetworkManager: ObservableObject {
         }.resume()
     }
     
-    func resolveStream(url: String, completion: @escaping (String?, String?) -> Void) {
+    func resolveStream(url: String, completion: @escaping (String?, String?, String?) -> Void) {
         // We must properly encoding the URL parameter so that & and ? are escaped.
         // .urlQueryAllowed DOES NOT escape & and ?, which breaks the backend parsing.
         
@@ -75,17 +75,18 @@ class NetworkManager: ObservableObject {
         // The backend expects 'url' to be the full target URL.
         guard var components = URLComponents(string: "\(baseURL)/stream") else {
              print("[NetworkManager] Invalid Base URL")
-             completion(nil, nil)
+             completion(nil, nil, nil)
              return
         }
         
         components.queryItems = [
-            URLQueryItem(name: "url", value: url)
+            URLQueryItem(name: "url", value: url),
+            URLQueryItem(name: "force_proxy", value: "true") // Force full proxy for iOS AVPlayer
         ]
         
         guard let apiURL = components.url else {
             print("[NetworkManager] Failed to construct URL components for: \(url)")
-            completion(nil, nil)
+            completion(nil, nil, nil)
             return
         }
         
@@ -93,7 +94,7 @@ class NetworkManager: ObservableObject {
         URLSession.shared.dataTask(with: apiURL) { data, _, error in
             guard let data = data, error == nil else {
                 print("[NetworkManager] Request error: \(error?.localizedDescription ?? "empty")")
-                completion(nil, nil)
+                completion(nil, nil, nil)
                 return
             }
             
@@ -105,6 +106,7 @@ class NetworkManager: ObservableObject {
                 let response = try JSONDecoder().decode(StreamResponse.self, from: data)
                 
                 let rawUrl = response.rawUrl
+                let cookie = response.cookie
                 var finalProxyUrl: String? = nil
                 
                 if let streamPath = response.streamUrl {
@@ -122,11 +124,11 @@ class NetworkManager: ObservableObject {
                     print("[NetworkManager] No streamUrl in response")
                 }
                 
-                DispatchQueue.main.async { completion(finalProxyUrl, rawUrl) }
+                DispatchQueue.main.async { completion(finalProxyUrl, rawUrl, cookie) }
                 
             } catch {
                 print("[NetworkManager] Decoding error (stream): \(error)")
-                DispatchQueue.main.async { completion(nil, nil) }
+                DispatchQueue.main.async { completion(nil, nil, nil) }
             }
         }.resume()
     }
