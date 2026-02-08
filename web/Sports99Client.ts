@@ -269,7 +269,8 @@ export class Sports99Client {
         try {
             const headers = {
                 Referer: this.playerReferer,
-                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+                // Match User-Agent with server.ts proxy to avoid session/UA mismatch (401)
+                'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Mobile/15E148 Safari/604.1'
             };
             const res = await axios.get(playerUrl, { headers, timeout: this.timeout });
 
