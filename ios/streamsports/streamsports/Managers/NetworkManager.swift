@@ -81,29 +81,30 @@ class NetworkManager: ObservableObject {
         }
     }
     
-    /// Resolves a cdn-live.tv stream directly on-device using WebView
-    /// This avoids IP binding issues since the token is generated for the device's IP
+    /// Resolves a cdn-live.tv stream using hybrid WebView + Proxy approach
+    /// 1. WebView resolves the player page → gets M3U8 URL with token bound to iPhone IP
+    /// 2. Proxy fetches the resolved URL → bypasses SSL/auth issues
+    /// 3. AVPlayer plays via proxy → stable playback
     private func resolveDirectly(url: String, completion: @escaping (String?, String?, String?) -> Void) {
         WebViewStreamResolver.shared.resolve(playerUrl: url) { streamUrl, cookie in
             if let streamUrl = streamUrl {
                 print("[NetworkManager] WebView resolution SUCCESS: \(streamUrl.prefix(80))...")
-                // For direct resolution, we return:
-                // - proxyUrl: nil (no proxy needed)
-                // - rawUrl: the actual M3U8 stream URL
-                // - cookie: the session cookie
-                DispatchQueue.main.async {
-                    completion(nil, streamUrl, cookie)
-                }
+                print("[NetworkManager] Using HYBRID approach: proxying resolved URL for stable playback")
+                
+                // HYBRID APPROACH: Use proxy with the resolved URL
+                // This combines WebView token generation (iPhone IP) with proxy stability (no SSL issues)
+                self.resolveViaProxy(url: streamUrl, cookie: cookie, completion: completion)
             } else {
-                print("[NetworkManager] WebView resolution FAILED, falling back to proxy")
-                // Fall back to proxy resolution
+                print("[NetworkManager] WebView resolution FAILED, falling back to full proxy")
+                // Fall back to full proxy resolution of original player URL
                 self.resolveViaProxy(url: url, completion: completion)
             }
         }
     }
     
-    /// Resolves a stream via the backend proxy (fallback)
-    private func resolveViaProxy(url: String, completion: @escaping (String?, String?, String?) -> Void) {
+    /// Resolves a stream via the backend proxy
+    /// Can accept either a player URL or a resolved M3U8 URL
+    private func resolveViaProxy(url: String, cookie: String? = nil, completion: @escaping (String?, String?, String?) -> Void) {
         guard var components = URLComponents(string: "\(baseURL)/stream") else {
              print("[NetworkManager] Invalid Base URL")
              completion(nil, nil, nil)

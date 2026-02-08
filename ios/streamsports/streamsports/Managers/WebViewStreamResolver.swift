@@ -147,6 +147,34 @@ class WebViewStreamResolver: NSObject, WKNavigationDelegate, WKScriptMessageHand
             if let sessionCookie = cookies.first(where: { $0.name == "PHPSESSID" }) {
                 let cookieString = "\(sessionCookie.name)=\(sessionCookie.value)"
                 print("[WebViewResolver] 🍪 Extracted cookie: \(cookieString)")
+                
+                // CRITICAL: Inject cookie into system HTTPCookieStorage
+                // The original cookie is for cdn-live.tv, but streams are on edge.cdn-live.ru
+                // So we create cookies for both domains
+                
+                // 1. Original cookie for cdn-live.tv
+                HTTPCookieStorage.shared.setCookie(sessionCookie)
+                
+                // 2. Create cookie for .cdn-live.ru domain (edge server domain)
+                var cookieProperties: [HTTPCookiePropertyKey: Any] = [
+                    .name: sessionCookie.name,
+                    .value: sessionCookie.value,
+                    .domain: ".cdn-live.ru",
+                    .path: "/",
+                    .secure: "TRUE"
+                ]
+                
+                if let expiresDate = sessionCookie.expiresDate {
+                    cookieProperties[.expires] = expiresDate
+                }
+                
+                if let edgeCookie = HTTPCookie(properties: cookieProperties) {
+                    HTTPCookieStorage.shared.setCookie(edgeCookie)
+                    print("[WebViewResolver] 💉 Injected cookies for cdn-live.tv AND cdn-live.ru domains")
+                } else {
+                    print("[WebViewResolver] ⚠️ Failed to create edge domain cookie")
+                }
+                
                 completion(cookieString)
             } else {
                 print("[WebViewResolver] ⚠️ No PHPSESSID cookie found")
