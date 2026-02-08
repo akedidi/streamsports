@@ -219,6 +219,11 @@ app.get('/api/proxy', async (req, res) => {
 
         // Forward important response headers
         res.setHeader('Access-Control-Allow-Origin', '*');
+        // CRITICAL: Prevent caching of proxied content (especially M3U8 playlists)
+        // Otherwise Vercel may serve stale rewritten URLs
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
 
         const contentType = response.headers['content-type'] || 'application/octet-stream';
         res.setHeader('Content-Type', contentType);
