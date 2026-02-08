@@ -100,6 +100,7 @@ class PlayerManager: ObservableObject {
                 
                 print("[PlayerManager] Playing URL: \(url) (Mode: \(isDirectPlayback ? "DIRECT" : "PROXY"))")
                 
+                
                 // Animate Presentation
                 withAnimation(.spring()) {
                     self.currentChannel = channel
@@ -112,25 +113,11 @@ class PlayerManager: ObservableObject {
                 // Create AVURLAsset - with headers for direct playback
                 let asset: AVURLAsset
                 if isDirectPlayback {
-                    // DIRECT PLAYBACK: Inject headers and cookies
-                    var options: [String: Any] = [:]
-                    
-                    // Build headers dictionary
-                    var headers: [String: String] = [
-                        "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Mobile/15E148 Safari/604.1",
-                        "Referer": "https://cdn-live.tv/",
-                        "Accept": "*/*",
-                        "Accept-Language": "en-US,en;q=0.9"
-                    ]
-                    
-                    // Add cookie if available
-                    if let cookie = cookie, !cookie.isEmpty {
-                        headers["Cookie"] = cookie
-                    }
-                    
-                    options[AVURLAssetHTTPHeaderFieldsKey] = headers
-                    asset = AVURLAsset(url: url, options: options)
-                    print("[PlayerManager] Direct playback with headers: \(headers.keys.joined(separator: ", "))")
+                    // DIRECT PLAYBACK: Try without custom headers first
+                    // The URL contains a signature, so it might be self-authenticated
+                    // If this fails, we'll need to implement AVAssetResourceLoaderDelegate
+                    asset = AVURLAsset(url: url)
+                    print("[PlayerManager] Direct playback (signed URL, no custom headers)")
                 } else {
                     // PROXY PLAYBACK: No headers needed, proxy handles them
                     asset = AVURLAsset(url: url)

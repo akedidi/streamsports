@@ -81,12 +81,12 @@ class NetworkManager: ObservableObject {
         }
     }
     
-    /// Resolves a cdn-live.tv stream directly on-device
+    /// Resolves a cdn-live.tv stream directly on-device using WebView
     /// This avoids IP binding issues since the token is generated for the device's IP
     private func resolveDirectly(url: String, completion: @escaping (String?, String?, String?) -> Void) {
-        StreamResolver.shared.resolve(playerUrl: url) { streamUrl, cookie in
+        WebViewStreamResolver.shared.resolve(playerUrl: url) { streamUrl, cookie in
             if let streamUrl = streamUrl {
-                print("[NetworkManager] Direct resolution SUCCESS: \(streamUrl.prefix(80))...")
+                print("[NetworkManager] WebView resolution SUCCESS: \(streamUrl.prefix(80))...")
                 // For direct resolution, we return:
                 // - proxyUrl: nil (no proxy needed)
                 // - rawUrl: the actual M3U8 stream URL
@@ -95,7 +95,7 @@ class NetworkManager: ObservableObject {
                     completion(nil, streamUrl, cookie)
                 }
             } else {
-                print("[NetworkManager] Direct resolution FAILED, falling back to proxy")
+                print("[NetworkManager] WebView resolution FAILED, falling back to proxy")
                 // Fall back to proxy resolution
                 self.resolveViaProxy(url: url, completion: completion)
             }
