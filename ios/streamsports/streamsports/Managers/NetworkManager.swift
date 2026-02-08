@@ -92,22 +92,24 @@ class NetworkManager: ObservableObject {
                 print("[NetworkManager] Using HYBRID approach: proxying resolved URL for stable playback")
                 
                 // HYBRID APPROACH: Build /api/proxy URL with proper encoding
-                // The server requires: url, referer, cookie, and force_proxy parameters
+                // The server requires: url, referer, cookie parameters
+                // OPTIMIZATION: Try force_proxy=false to let AVPlayer fetch segments directly (saves bandwidth)
+                // ATS Exceptions added to Info.plist should now allow direct HTTPS connections.
                 guard var components = URLComponents(string: "\(self.baseURL)/proxy") else {
                     print("[NetworkManager] Failed to create URLComponents")
                     completion(nil, nil, nil)
                     return
                 }
                 
-                // Build query parameters
-                var queryItems = [URLQueryItem(name: "url", value: streamUrl)]
-                
-                // Add referer (required by server)
-                queryItems.append(URLQueryItem(name: "referer", value: "https://cdn-live.tv/"))
-                
+                components.queryItems = [
+                    URLQueryItem(name: "url", value: streamUrl),
+                    URLQueryItem(name: "referer", value: "https://cdn-live.tv/"),
+                    // force_proxy=false: Proxy playlist only, segments direct
+                    URLQueryItem(name: "force_proxy", value: "false") 
+                ]
                 // Add cookie if available
                 if let cookie = cookie {
-                    queryItems.append(URLQueryItem(name: "cookie", value: cookie))
+                    components.queryItems?.append(URLQueryItem(name: "cookie", value: cookie))
                     print("[NetworkManager] Including cookie in proxy request")
                 }
                 
