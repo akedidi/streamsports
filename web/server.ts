@@ -222,6 +222,12 @@ app.get('/api/proxy', async (req, res) => {
                     // CHECK: If 'force_proxy' is set (e.g. for iOS/Native), proxy everything
                     const forceProxy = req.query.force_proxy === 'true';
 
+                    // CRITICAL: Skip if URL is already a proxy URL (prevent double wrapping)
+                    if (absoluteUrl.startsWith('/api/proxy')) {
+                        console.log(`[Proxy] URL already proxied, skipping rewrite: ${trimmed}`);
+                        return absoluteUrl;
+                    }
+
                     if (absoluteUrl.includes('.m3u8') || forceProxy) {
                         console.log(`[Proxy] Rewriting ${forceProxy ? 'Segment (Forced)' : 'Playlist'}: ${trimmed}`);
                         // CRITICAL: Propagate cookie to rewritten URLs for authenticated access
