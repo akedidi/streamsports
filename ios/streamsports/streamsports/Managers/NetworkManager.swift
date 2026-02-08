@@ -92,15 +92,26 @@ class NetworkManager: ObservableObject {
                 print("[NetworkManager] Using HYBRID approach: proxying resolved URL for stable playback")
                 
                 // HYBRID APPROACH: Build /api/proxy URL with proper encoding
-                // Use URLComponents to correctly encode the target URL as a query parameter
+                // The server requires: url, referer, and cookie parameters
                 guard var components = URLComponents(string: "\(self.baseURL)/proxy") else {
                     print("[NetworkManager] Failed to create URLComponents")
                     completion(nil, nil, nil)
                     return
                 }
                 
-                // URLQueryItem automatically encodes special characters like & and =
-                components.queryItems = [URLQueryItem(name: "url", value: streamUrl)]
+                // Build query parameters
+                var queryItems = [URLQueryItem(name: "url", value: streamUrl)]
+                
+                // Add referer (required by server)
+                queryItems.append(URLQueryItem(name: "referer", value: "https://cdn-live.tv/"))
+                
+                // Add cookie if available
+                if let cookie = cookie {
+                    queryItems.append(URLQueryItem(name: "cookie", value: cookie))
+                    print("[NetworkManager] Including cookie in proxy request")
+                }
+                
+                components.queryItems = queryItems
                 
                 guard let proxyUrl = components.url else {
                     print("[NetworkManager] Failed to build proxy URL")
