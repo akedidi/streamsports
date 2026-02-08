@@ -289,6 +289,12 @@ export class Sports99Client {
                 // Extract cookies if present
                 const cookies = res.headers['set-cookie'];
 
+                // Check if URL is already a proxy URL to avoid double wrapping
+                if (streamUrl.startsWith('/api/proxy')) {
+                    console.log('[Sports99] Stream URL is already proxied, skipping wrapper');
+                    return { streamUrl, cookies };
+                }
+
                 // HYBRID APPROACH (like iOS): Wrap stream in proxy for stable playback
                 // Build proxy URL with force_proxy=true to ensure ALL segments are proxied
                 const proxyParams = new URLSearchParams({
