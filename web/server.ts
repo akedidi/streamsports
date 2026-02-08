@@ -197,6 +197,11 @@ app.get('/api/proxy', async (req, res) => {
             headers['X-Real-IP'] = clientIp;
         }
 
+        // Forward Range header if present (Critical for seeking/playback)
+        if (req.headers['range']) {
+            headers['Range'] = req.headers['range'];
+        }
+
         let finalTargetUrl = targetUrl;
         const useExternalProxy = req.query.external_proxy === 'true';
         if (useExternalProxy) {
@@ -204,104 +209,124 @@ app.get('/api/proxy', async (req, res) => {
             finalTargetUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
         }
 
+        // Use stream to avoid buffering large files in memory
         const response = await axios.get(finalTargetUrl, {
             headers,
-            responseType: 'arraybuffer'
+            responseType: 'stream',
+            validateStatus: (status) => status < 400 || status === 416 // Allow 206 Partial Content
         });
 
+        // Forward important response headers
         res.setHeader('Access-Control-Allow-Origin', '*');
 
-        const contentType = response.headers['content-type'];
+        const contentType = response.headers['content-type'] || 'application/octet-stream';
         res.setHeader('Content-Type', contentType);
 
-        // console.log(`[Proxy] Response Content-Type: ${contentType}`);
+        if (response.headers['content-length']) res.setHeader('Content-Length', response.headers['content-length']);
+        if (response.headers['content-range']) res.setHeader('Content-Range', response.headers['content-range']);
+        if (response.headers['accept-ranges']) res.setHeader('Accept-Ranges', response.headers['accept-ranges']);
+        res.status(response.status); // Forward 200 vs 206
 
         const isM3U8 = (contentType && (contentType.includes('mpegurl') || contentType.includes('application/x-mpegURL'))) ||
-            targetUrl.includes('.m3u8') ||
-            (Buffer.isBuffer(response.data) && response.data.slice(0, 7).toString() === '#EXTM3U') ||
-            (typeof response.data === 'string' && response.data.startsWith('#EXTM3U'));
+            targetUrl.includes('.m3u8');
 
         if (isM3U8) {
-            console.log(`[Proxy] Detected M3U8 Playlist: ${targetUrl.split('/').pop()}`);
-            let m3u8Content = response.data.toString('utf8');
-            let baseUrl = targetUrl.substring(0, targetUrl.lastIndexOf('/') + 1);
+            // Buffer stream for M3U8 rewriting
+            const chunks: any[] = [];
+            response.data.on('data', (chunk: any) => chunks.push(chunk));
+            response.data.on('end', () => {
+                const buffer = Buffer.concat(chunks);
+                const m3u8Content = buffer.toString('utf8');
 
-            const lines = m3u8Content.split('\n');
-            const rewrittenLines = lines.map((line: string) => {
-                const trimmed = line.trim();
+                console.log(`[Proxy] Detected M3U8 Playlist: ${targetUrl.split('/').pop()}`);
+                let baseUrl = targetUrl.substring(0, targetUrl.lastIndexOf('/') + 1);
 
-                // Case 1: Standard URL line (Segment or Playlist)
-                if (trimmed && !trimmed.startsWith('#')) {
-                    let absoluteUrl = trimmed;
-                    if (!trimmed.startsWith('http')) {
-                        absoluteUrl = new URL(trimmed, baseUrl).toString();
-                    }
+                const lines = m3u8Content.split('\n');
+                const rewrittenLines = lines.map((line: string) => {
+                    const trimmed = line.trim();
 
-                    // Proxy Playlists ONLY (Segments direct for speed)
-                    // REVERTED: User reported full proxying was too slow.
-                    // This puts the risk of idleReason=4 back on the table if provider checks Referer on segments.
-
-                    // CHECK: If 'force_proxy' is set (e.g. for iOS/Native), proxy everything
-                    const forceProxy = req.query.force_proxy === 'true';
-
-                    // CRITICAL: Skip if URL is already a proxy URL (prevent double wrapping)
-                    if (absoluteUrl.startsWith('/api/proxy')) {
-                        console.log(`[Proxy] URL already proxied, skipping rewrite: ${trimmed}`);
-                        return absoluteUrl;
-                    }
-
-                    if (absoluteUrl.includes('.m3u8') || forceProxy) {
-                        console.log(`[Proxy] Rewriting ${forceProxy ? 'Segment (Forced)' : 'Playlist'}: ${trimmed}`);
-                        // CRITICAL: Propagate cookie to rewritten URLs for authenticated access
-                        const cookieParam = cookie ? `&cookie=${encodeURIComponent(cookie)}` : '';
-                        return `/api/proxy?url=${encodeURIComponent(absoluteUrl)}&referer=${encodeURIComponent(referer)}&force_proxy=${forceProxy}${cookieParam}`;
-                    } else {
-                        // Direct link for segments (Save bandwidth / reduce server load for Browser/iOS)
-                        return absoluteUrl;
-                    }
-                }
-
-                // Case 2: Tag with URI="..." (Encryption Keys, Audio Tracks, Subtitles, Init Segments)
-                if (trimmed.startsWith('#') && trimmed.includes('URI=')) {
-                    return trimmed.replace(/URI=["']([^"']+)["']/g, (match, uri) => {
-                        let absoluteUrl = uri;
-                        if (!uri.startsWith('http')) {
-                            absoluteUrl = new URL(uri, baseUrl).toString();
+                    // Case 1: Standard URL line (Segment or Playlist)
+                    if (trimmed && !trimmed.startsWith('#')) {
+                        let absoluteUrl = trimmed;
+                        if (!trimmed.startsWith('http')) {
+                            absoluteUrl = new URL(trimmed, baseUrl).toString();
                         }
 
-                        // Check tag type to decide if we MUST proxy
-                        const isSensitiveTag = trimmed.startsWith('#EXT-X-KEY') ||
-                            trimmed.startsWith('#EXT-X-MAP') ||
-                            trimmed.startsWith('#EXT-X-MEDIA');
+                        // CHECK: If 'force_proxy' is set (e.g. for iOS/Native), proxy everything
+                        const forceProxy = req.query.force_proxy === 'true';
 
-                        // Always proxy M3U8s (Sub-playlists), Keys, Maps (Init Segments), and Media (Subtitles)
-                        if (absoluteUrl.includes('.m3u8') || isSensitiveTag) {
-                            console.log(`[Proxy] Rewriting Tag URI (${trimmed.split(':')[0]}): ${uri}`);
-                            const proxyUri = `/api/proxy?url=${encodeURIComponent(absoluteUrl)}&referer=${encodeURIComponent(referer)}`;
-                            return `URI="${proxyUri}"`;
+                        // CRITICAL: Skip if URL is already a proxy URL (prevent double wrapping)
+                        if (absoluteUrl.startsWith('/api/proxy')) {
+                            // log only on debug
+                            // console.log(`[Proxy] URL already proxied, skipping rewrite: ${trimmed}`);
+                            return absoluteUrl;
                         }
 
-                        // Standard segments inside tags (rare)? Direct link
-                        return `URI="${absoluteUrl}"`;
-                    });
-                }
+                        if (absoluteUrl.includes('.m3u8') || forceProxy) {
+                            // console.log(`[Proxy] Rewriting ${forceProxy ? 'Segment (Forced)' : 'Playlist'}: ${trimmed}`);
+                            // CRITICAL: Propagate cookie to rewritten URLs for authenticated access
+                            const cookieParam = cookie ? `&cookie=${encodeURIComponent(cookie)}` : '';
+                            return `/api/proxy?url=${encodeURIComponent(absoluteUrl)}&referer=${encodeURIComponent(referer)}&force_proxy=${forceProxy}${cookieParam}`;
+                        } else {
+                            // Direct link for segments (Save bandwidth / reduce server load for Browser/iOS)
+                            return absoluteUrl;
+                        }
+                    }
 
-                return line;
+                    // Case 2: Tag with URI="..." 
+                    if (trimmed.startsWith('#') && trimmed.includes('URI=')) {
+                        return trimmed.replace(/URI=["']([^"']+)["']/g, (match, uri) => {
+                            let absoluteUrl = uri;
+                            if (!uri.startsWith('http')) {
+                                absoluteUrl = new URL(uri, baseUrl).toString();
+                            }
+
+                            const isSensitiveTag = trimmed.startsWith('#EXT-X-KEY') ||
+                                trimmed.startsWith('#EXT-X-MAP') ||
+                                trimmed.startsWith('#EXT-X-MEDIA');
+
+                            if (absoluteUrl.includes('.m3u8') || isSensitiveTag) {
+                                // console.log(`[Proxy] Rewriting Tag URI (${trimmed.split(':')[0]}): ${uri}`);
+                                const proxyUri = `/api/proxy?url=${encodeURIComponent(absoluteUrl)}&referer=${encodeURIComponent(referer)}`;
+                                return `URI="${proxyUri}"`;
+                            }
+                            return `URI="${absoluteUrl}"`;
+                        });
+                    }
+                    return line;
+                });
+
+                // Send rewritten M3U8
+                const finalContent = rewrittenLines.join('\n');
+                // Update content-length because we changed the body
+                res.setHeader('Content-Length', Buffer.byteLength(finalContent));
+                res.send(finalContent);
             });
 
-            res.send(rewrittenLines.join('\n'));
+            response.data.on('error', (err: any) => {
+                console.error('[Proxy] Error reading M3U8 stream:', err);
+                res.end();
+            });
+
         } else {
-            // Binary content (segments, keys, etc.)
-            // console.log(`[Proxy] Serving Binary/Other Content (${response.data.length} bytes)`);
-            res.send(response.data);
+            // Binary content (segments) - PIPE DIRECTLY!
+            // console.log(`[Proxy] Piping Binary Content (${contentType})`);
+            response.data.pipe(res);
+
+            response.data.on('error', (err: any) => {
+                console.error('[Proxy] Stream error:', err);
+                res.end();
+            });
         }
 
     } catch (error: any) {
-        console.error(`[Proxy] Error fetching ${targetUrl}:`, error.message);
+        // Handle axios errors
         if (error.response) {
-            res.status(error.response.status).send(error.message);
+            console.error(`[Proxy] Upstream Error ${error.response.status} for ${targetUrl}`);
+            res.status(error.response.status).send(error.response.statusText);
         } else {
-            res.status(500).send(error.message);
+            console.error(`[Proxy] Network Error fetching ${targetUrl}:`, error.message);
+            res.status(500).send('Proxy Error');
         }
     }
 });
