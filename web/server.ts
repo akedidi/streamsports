@@ -80,6 +80,11 @@ app.get('/api/stream', async (req, res) => {
                 proxyUrl += `&cookie=${encodeURIComponent(cookieString)}`;
             }
 
+            // Propagate force_proxy flag (for iOS/Native)
+            if (req.query.force_proxy === 'true') {
+                proxyUrl += '&force_proxy=true';
+            }
+
             // Expose Raw URL for Chromecast (Residential IP)
             res.json({ success: true, streamUrl: proxyUrl, rawUrl: result.streamUrl });
         } else {
