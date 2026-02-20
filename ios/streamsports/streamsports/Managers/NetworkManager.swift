@@ -5,7 +5,7 @@ class NetworkManager: ObservableObject {
     static let shared = NetworkManager()
     
     // Using the Vercel deployment as the API source
-    private let baseURL = "https://streamsports-proxy-718568928645.us-central1.run.app/api"
+    private let baseURL = "https://streamsports-wine.vercel.app/api"
     
     func fetchChannels(completion: @escaping ([SportsChannel]) -> Void) {
         guard let url = URL(string: "\(baseURL)/channels") else { return }
@@ -70,9 +70,6 @@ class NetworkManager: ObservableObject {
     /// Resolves a stream URL for playback
     /// For cdn-live.tv streams, uses direct resolution on-device to avoid IP binding issues
     /// For other streams, falls back to the backend proxy
-    /// - Parameters:
-    ///   - url: The channel URL
-    ///   - completion: Callback with (proxyUrl, rawUrl, cookie, userAgent)
     func resolveStream(url: String, completion: @escaping (String?, String?, String?, String?) -> Void) {
         // Check if this is a cdn-live.tv stream that we can resolve directly
         if url.contains("cdn-live.tv") {
@@ -80,44 +77,41 @@ class NetworkManager: ObservableObject {
             resolveDirectly(url: url, completion: completion)
         } else {
             print("[NetworkManager] Using PROXY resolution for non-cdn-live stream")
-            resolveViaProxy(url: url) { proxy, raw, cookie in
-                completion(proxy, raw, cookie, nil)
-            }
+            resolveViaProxy(url: url, completion: completion)
         }
     }
     
-    /// Resolves a cdn-live.tv stream using direct resolution
-    /// 1. WebView resolves the player page → gets M3U8 URL with IP-bound token
-    /// 2. Returns URL directly to PlayerManager for native playback (NO local proxy)
-    ///
-    /// WHY no local proxy: token is IP/session-bound to the WebView.
-    /// URLSession (from LocalProxyServer) uses a different socket → 401.
-    /// Tests confirmed: segments accessible without any headers/cookies.
+    /// Resolves a cdn-live.tv stream using hybrid WebView + Proxy approach
+    /// 1. WebView resolves the player page → gets M3U8 URL with token bound to iPhone IP
+    /// 2. Proxy fetches the resolved URL directly via /api/proxy → bypasses SSL/auth issues
+    /// 3. AVPlayer plays via proxy → stable playback
     private func resolveDirectly(url: String, completion: @escaping (String?, String?, String?, String?) -> Void) {
-        WebViewStreamResolver.shared.resolve(playerUrl: url) { streamUrl, cookie, userAgent in
+        WebViewStreamResolver.shared.resolve(playerUrl: url) { streamUrl, cookie in
             if let streamUrl = streamUrl {
                 print("[NetworkManager] WebView resolution SUCCESS: \(streamUrl.prefix(80))...")
-                print("[NetworkManager] Playing DIRECTLY (no local proxy needed — token in URL)")
+                print("[NetworkManager] Passing raw stream URL directly with headers")
+                
+                // Assuming standard iPhone User-Agent or the one used by WKWebView
+                let userAgent = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Mobile/15E148 Safari/604.1"
                 
                 DispatchQueue.main.async {
-                    // Pass nil for proxyUrl, streamUrl for rawUrl, cookie for cookie, and userAgent
+                    // Return rawUrl with cookie and userAgent. nil for proxyUrl.
                     completion(nil, streamUrl, cookie, userAgent)
                 }
             } else {
-                print("[NetworkManager] WebView resolution FAILED, falling back to backend proxy")
-                self.resolveViaProxy(url: url) { proxyUrl, rawUrl, cookie in
-                    completion(proxyUrl, rawUrl, cookie, nil)
-                }
+                print("[NetworkManager] WebView resolution FAILED, falling back to full proxy")
+                // Fall back to full proxy resolution of original player URL
+                self.resolveViaProxy(url: url, completion: completion)
             }
         }
     }
     
     /// Resolves a stream via the backend proxy
     /// Can accept either a player URL or a resolved M3U8 URL
-    private func resolveViaProxy(url: String, cookie: String? = nil, completion: @escaping (String?, String?, String?) -> Void) {
+    private func resolveViaProxy(url: String, cookie: String? = nil, completion: @escaping (String?, String?, String?, String?) -> Void) {
         guard var components = URLComponents(string: "\(baseURL)/stream") else {
              print("[NetworkManager] Invalid Base URL")
-             completion(nil, nil, nil)
+             completion(nil, nil, nil, nil)
              return
         }
         
@@ -128,7 +122,7 @@ class NetworkManager: ObservableObject {
         
         guard let apiURL = components.url else {
             print("[NetworkManager] Failed to construct URL components for: \(url)")
-            completion(nil, nil, nil)
+            completion(nil, nil, nil, nil)
             return
         }
         
@@ -136,7 +130,7 @@ class NetworkManager: ObservableObject {
         URLSession.shared.dataTask(with: apiURL) { data, _, error in
             guard let data = data, error == nil else {
                 print("[NetworkManager] Request error: \(error?.localizedDescription ?? "empty")")
-                completion(nil, nil, nil)
+                completion(nil, nil, nil, nil)
                 return
             }
             
@@ -156,18 +150,18 @@ class NetworkManager: ObservableObject {
                     if streamPath.hasPrefix("http") {
                         finalProxyUrl = streamPath
                     } else {
-                        let host = "https://streamsports-proxy-718568928645.us-central1.run.app"
+                        let host = "https://streamsports-wine.vercel.app"
                         finalProxyUrl = "\(host)\(streamPath)"
                     }
                 } else {
                     print("[NetworkManager] No streamUrl in response")
                 }
                 
-                DispatchQueue.main.async { completion(finalProxyUrl, rawUrl, cookie) }
+                DispatchQueue.main.async { completion(finalProxyUrl, rawUrl, cookie, nil) }
                 
             } catch {
                 print("[NetworkManager] Decoding error (stream): \(error)")
-                DispatchQueue.main.async { completion(nil, nil, nil) }
+                DispatchQueue.main.async { completion(nil, nil, nil, nil) }
             }
         }.resume()
     }

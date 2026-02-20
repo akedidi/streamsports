@@ -25,8 +25,6 @@ class PlayerManager: ObservableObject {
     
     var player: AVPlayer?
     private var timeControlStatusObserver: NSKeyValueObservation?
-    // Retain HLSResourceLoader to avoid dealloc (needed for the lifetime of AVPlayer)
-    private var hlsResourceLoader: HLSResourceLoader?
     
     // Mini Player Config
     let miniHeight: CGFloat = 60
@@ -81,44 +79,12 @@ class PlayerManager: ObservableObject {
             
             DispatchQueue.main.async {
                 // Determine playback mode:
-                // - If resolvedUrl exists: Use BACKEND proxy (legacy/fallback)
-                // - If only rawUrl exists:
-                //   - If cookie exists: Use LOCAL proxy (New cdn-live logic)
-                //   - If no cookie: Direct playback
+                // - If resolvedUrl exists: Use proxy (backend handles headers)
+                // - If only rawUrl exists: Direct playback with injected headers
+                let isDirectPlayback = (resolvedUrl == nil && rawUrl != nil)
+                let urlToUseStr = isDirectPlayback ? rawUrl : (resolvedUrl ?? rawUrl)
                 
-                var urlToPlay: URL?
-                
-                if let backendProxy = resolvedUrl, let url = URL(string: backendProxy) {
-                    // Backend Proxy
-                    urlToPlay = url
-                    print("[PlayerManager] Using Backend Proxy")
-                    } else if let raw = rawUrl, let url = URL(string: raw) {
-                    // Direct or Local Proxy
-                    
-                    // --- CDN-LIVE SPECIAL ---
-                    if url.absoluteString.contains("cdn-live") {
-                         // We MUST use LocalProxyServer for cdn-live.
-                         // Direct Playback with AVURLAssetHTTPHeaderFieldsKey drops headers on subsequent 
-                         // live playlist refreshes and segment requests, leading to 401 (-15514) stalls.
-                         LocalProxyServer.shared.start()
-                         let proxyUrl = LocalProxyServer.shared.getProxyUrl(for: url.absoluteString, cookie: cookie, userAgent: userAgent, referer: "https://cdn-live.tv/")
-                         urlToPlay = URL(string: proxyUrl)
-                         print("🔄 [PlayerManager] Using Local Proxy for cdn-live to guarantee Cookie persistence")
-                         
-                    } else if let cookie = cookie {
-                        // Local Proxy needed for Cookie support (non-cdn-live)
-                        LocalProxyServer.shared.start() // Ensure started
-                        let proxyUrl = LocalProxyServer.shared.getProxyUrl(for: raw, cookie: cookie, userAgent: userAgent, referer: "https://cdn-live.tv/")
-                        urlToPlay = URL(string: proxyUrl)
-                        print("[PlayerManager] Using Local Proxy (UA: \(userAgent != nil), Ref: https://cdn-live.tv/)")
-                    } else {
-                        // Direct (cdn-live.tv: token in URL, no proxy needed)
-                        urlToPlay = url
-                        print("[PlayerManager] Using Direct Playback")
-                    }
-                }
-                
-                guard let url = urlToPlay else {
+                guard let urlStr = urlToUseStr, let url = URL(string: urlStr) else {
                     print("[PlayerManager] Failed to resolve URL")
                     return
                 }
@@ -132,7 +98,7 @@ class PlayerManager: ObservableObject {
                     return
                 }
                 
-                print("[PlayerManager] Playing URL: \(url)")
+                print("[PlayerManager] Playing URL: \(url) (Mode: \(isDirectPlayback ? "DIRECT" : "PROXY"))")
                 
                 
                 // Animate Presentation
@@ -144,11 +110,22 @@ class PlayerManager: ObservableObject {
                     self.offset = 0
                 }
                 
-                // Since all authenticated streams (cdn-live, etc.) now use LocalProxyServer,
-                // we don't need AVURLAssetHTTPHeaderFieldsKey anymore. AVPlayer will request
-                // localhost:8080, and the proxy will attach the cookie/headers upstream.
-                let asset = AVURLAsset(url: url)
-                self.hlsResourceLoader = nil // Not needed
+                // Create AVURLAsset - with headers for direct playback
+                let asset: AVURLAsset
+                if isDirectPlayback {
+                    // DIRECT PLAYBACK: Inject HTTP headers via AVURLAsset options
+                    var headers: [String: String] = [:]
+                    if let cookieStr = cookie { headers["Cookie"] = cookieStr }
+                    if let uaStr = userAgent { headers["User-Agent"] = uaStr }
+                    headers["Referer"] = "https://cdn-live.tv/"
+                    
+                    let options: [String: Any]? = headers.isEmpty ? nil : ["AVURLAssetHTTPHeaderFieldsKey": headers]
+                    asset = AVURLAsset(url: url, options: options)
+                    print("[PlayerManager] Using AVURLAsset with headers for cdn-live.tv")
+                } else {
+                    // PROXY PLAYBACK: No headers needed, proxy handles them
+                    asset = AVURLAsset(url: url)
+                }
                 
                 let item = AVPlayerItem(asset: asset)
                 self.player = AVPlayer(playerItem: item)

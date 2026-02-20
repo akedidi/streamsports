@@ -97,7 +97,6 @@
 				A2BADE3F2F23A742009C44F4 /* Frameworks */,
 				A2BADE402F23A742009C44F4 /* Resources */,
 				0A2A0DAFE65B5F741A20685B /* [CP] Copy Pods Resources */,
-				759FA3C786819F0C4FC506E6 /* [CP] Embed Pods Frameworks */,
 			);
 			buildRules = (
 			);
@@ -197,27 +196,6 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-streamsports/Pods-streamsports-resources.sh\"\n";
-			showEnvVarsInLog = 0;
-		};
-		759FA3C786819F0C4FC506E6 /* [CP] Embed Pods Frameworks */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-streamsports/Pods-streamsports-frameworks-${CONFIGURATION}-input-files.xcfilelist",
-			);
-			inputPaths = (
-			);
-			name = "[CP] Embed Pods Frameworks";
-			outputFileListPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-streamsports/Pods-streamsports-frameworks-${CONFIGURATION}-output-files.xcfilelist",
-			);
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-streamsports/Pods-streamsports-frameworks.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
 /* End PBXShellScriptBuildPhase section */
