@@ -169,8 +169,7 @@ class LocalProxyServer {
             }
             
             // ASYNC STREAMING APPROACH
-            // Instead of blocking 3MB into RAM (which starves AVPlayer buffer and causes 12312 stalls),
-            // pipe the bytes directly from the URLSession socket to GCDWebServer's socket.
+            // Pipe the bytes directly from the URLSession socket to GCDWebServer's socket.
             var didRespond = false
             let delegate = ProxySegmentDelegate { response in
                 guard !didRespond else { return }
@@ -196,6 +195,7 @@ class LocalProxyServer {
                 })
                 
                 streamedResponse.setValue("no-cache, no-store, must-revalidate", forAdditionalHeader: "Cache-Control")
+                streamedResponse.setValue("close", forAdditionalHeader: "Connection") // Force close to free sockets aggressively
                 completion(streamedResponse)
             }
             

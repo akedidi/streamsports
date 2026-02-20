@@ -3,8 +3,8 @@ import Foundation
 class ProxySegmentDelegate: NSObject, URLSessionDataDelegate {
     private var onResponseReady: ((URLResponse) -> Void)?
     
-    // Thread-safe buffer
-    private let queue = DispatchQueue(label: "com.streamsports.segment.delegate")
+    // Thread-safe buffer using NSLock instead of DispatchQueue to avoid deadlocking GCD pool
+    private let lock = NSLock()
     private var buffer: [Data] = []
     private var pendingReadCompletion: ((Data?, Error?) -> Void)?
     private var isFinished = false
@@ -21,41 +21,47 @@ class ProxySegmentDelegate: NSObject, URLSessionDataDelegate {
     }
     
     func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {
-        queue.async {
-            if let completion = self.pendingReadCompletion {
-                self.pendingReadCompletion = nil
-                DispatchQueue.global().async { completion(data, nil) }
-            } else {
-                self.buffer.append(data)
-            }
+        lock.lock()
+        if let completion = self.pendingReadCompletion {
+            self.pendingReadCompletion = nil
+            lock.unlock()
+            completion(data, nil)
+        } else {
+            self.buffer.append(data)
+            lock.unlock()
         }
     }
     
     func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
-        queue.async {
-            self.isFinished = true
-            self.responseError = error
-            
-            if let completion = self.pendingReadCompletion {
-                self.pendingReadCompletion = nil
-                let outData = self.buffer.isEmpty ? Data() : self.buffer.removeFirst()
-                DispatchQueue.global().async { completion(outData, error) }
-            }
+        lock.lock()
+        self.isFinished = true
+        self.responseError = error
+        
+        if let completion = self.pendingReadCompletion {
+            self.pendingReadCompletion = nil
+            let outData = self.buffer.isEmpty ? Data() : self.buffer.removeFirst()
+            lock.unlock()
+            completion(outData, error)
+        } else {
+            lock.unlock()
         }
     }
     
     func readNextChunk(completion: @escaping (Data?, Error?) -> Void) {
-        queue.async {
-            if let error = self.responseError {
-                completion(nil, error)
-            } else if !self.buffer.isEmpty {
-                let data = self.buffer.removeFirst()
-                completion(data, nil)
-            } else if self.isFinished {
-                completion(Data(), nil) // EOF
-            } else {
-                self.pendingReadCompletion = completion
-            }
+        lock.lock()
+        if let error = self.responseError {
+            lock.unlock()
+            completion(nil, error)
+        } else if !self.buffer.isEmpty {
+            let data = self.buffer.removeFirst()
+            lock.unlock()
+            completion(data, nil)
+        } else if self.isFinished {
+            lock.unlock()
+            completion(Data(), nil) // EOF
+        } else {
+            self.pendingReadCompletion = completion
+            lock.unlock()
         }
     }
 }
@@ -63,34 +69,35 @@ class ProxySegmentDelegate: NSObject, URLSessionDataDelegate {
 class ProxySegmentManager {
     static let shared = ProxySegmentManager()
     
-    private let queue = DispatchQueue(label: "com.streamsports.segment.manager")
+    private let lock = NSLock()
     private var activeSessions: [String: ProxySegmentDelegate] = [:]
     
     private init() {}
     
     func register(task: URLSessionDataTask, urlString: String) {
         guard let delegate = task.delegate as? ProxySegmentDelegate else { return }
-        queue.async {
-            self.activeSessions[urlString] = delegate
-        }
+        lock.lock()
+        self.activeSessions[urlString] = delegate
+        lock.unlock()
     }
     
     func readNextChunk(for urlString: String, completion: @escaping (Data?, Error?) -> Void) {
-        queue.async {
-            guard let delegate = self.activeSessions[urlString] else {
-                completion(Data(), nil) // Fake EOF if not found
-                return
-            }
+        lock.lock()
+        guard let delegate = self.activeSessions[urlString] else {
+            lock.unlock()
+            completion(Data(), nil) // Fake EOF if not found
+            return
+        }
+        lock.unlock()
+        
+        delegate.readNextChunk { [weak self] data, error in
+            completion(data, error)
             
-            delegate.readNextChunk { data, error in
-                completion(data, error)
-                
-                // Cleanup on EOF or error
-                if error != nil || (data != nil && data!.isEmpty) {
-                    self.queue.async {
-                        self.activeSessions.removeValue(forKey: urlString)
-                    }
-                }
+            // Cleanup on EOF or error
+            if error != nil || (data != nil && data!.isEmpty) {
+                self?.lock.lock()
+                self?.activeSessions.removeValue(forKey: urlString)
+                self?.lock.unlock()
             }
         }
     }
