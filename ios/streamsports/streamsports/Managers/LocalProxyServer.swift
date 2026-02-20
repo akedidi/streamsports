@@ -58,6 +58,7 @@ class LocalProxyServer {
             var statusCode = 500
             
             var req = URLRequest(url: url)
+            req.cachePolicy = .reloadIgnoringLocalCacheData // CRITICAL: Stop URLSession from caching the Live Playlist
             req.httpShouldHandleCookies = false // Prevent URLSession from injecting stale shared cookies
             
             // HEADERS: exact match with backend (server.ts)
@@ -123,7 +124,14 @@ class LocalProxyServer {
             
             // Rewrite Playlist
             let rewritten = self.rewritePlaylist(content: content, baseUrl: url, cookie: cookie, userAgent: userAgent, referer: referer)
-            return GCDWebServerDataResponse(data: rewritten.data(using: .utf8)!, contentType: "application/vnd.apple.mpegurl")
+            let response = GCDWebServerDataResponse(data: rewritten.data(using: .utf8)!, contentType: "application/vnd.apple.mpegurl")
+            
+            // CRITICAL: Prevent AVPlayer from caching the internal proxy response
+            response.setValue("no-cache, no-store, must-revalidate", forAdditionalHeader: "Cache-Control")
+            response.setValue("no-cache", forAdditionalHeader: "Pragma")
+            response.setValue("0", forAdditionalHeader: "Expires")
+            
+            return response
         }
         
         // 2. Segment Handler
@@ -145,6 +153,7 @@ class LocalProxyServer {
             var contentType = "video/mp2t"
             
             var req = URLRequest(url: url)
+            req.cachePolicy = .reloadIgnoringLocalCacheData // Same cache policy for segments just in case
             req.httpShouldHandleCookies = false // Prevent URLSession from injecting stale shared cookies
             
             // HEADERS: exact match with playlist handler & backend
@@ -191,7 +200,10 @@ class LocalProxyServer {
                 return GCDWebServerDataResponse(statusCode: statusCode)
             }
             
-            return GCDWebServerDataResponse(data: data, contentType: contentType)
+            let response = GCDWebServerDataResponse(data: data, contentType: contentType)
+            // Segments can be cached slightly but typically not an issue. Let's disable caching to be safe against stale tokens
+            response.setValue("no-cache, no-store, must-revalidate", forAdditionalHeader: "Cache-Control")
+            return response
         }
     }
     
