@@ -103,8 +103,7 @@ class ProxySegmentManager {
     
     private init() {}
     
-    func register(task: URLSessionDataTask, urlString: String) {
-        guard let delegate = task.delegate as? ProxySegmentDelegate else { return }
+    func register(delegate: ProxySegmentDelegate, urlString: String) {
         lock.lock()
         self.activeSessions[urlString] = delegate
         lock.unlock()

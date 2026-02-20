@@ -221,7 +221,7 @@ class LocalProxyServer {
             
             let session = URLSession(configuration: self.proxySession.configuration, delegate: delegate, delegateQueue: nil)
             let task = session.dataTask(with: req)
-            ProxySegmentManager.shared.register(task: task, urlString: urlString)
+            ProxySegmentManager.shared.register(delegate: delegate, urlString: urlString)
             task.resume()
         }
     }
