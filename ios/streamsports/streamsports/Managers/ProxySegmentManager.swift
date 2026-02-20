@@ -1,7 +1,7 @@
 import Foundation
 
 class ProxySegmentDelegate: NSObject, URLSessionDataDelegate {
-    private var onResponseReady: ((URLResponse) -> Void)?
+    private var onResponseReady: ((URLResponse?, Error?) -> Void)?
     
     // Thread-safe buffer using NSLock instead of DispatchQueue to avoid deadlocking GCD pool
     private let lock = NSLock()
@@ -9,14 +9,31 @@ class ProxySegmentDelegate: NSObject, URLSessionDataDelegate {
     private var pendingReadCompletion: ((Data?, Error?) -> Void)?
     private var isFinished = false
     private var responseError: Error?
+    private var responseHandled = false
     
-    init(onResponseReady: @escaping (URLResponse) -> Void) {
+    init(onResponseReady: @escaping (URLResponse?, Error?) -> Void) {
         self.onResponseReady = onResponseReady
         super.init()
     }
     
     func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive response: URLResponse, completionHandler: @escaping (URLSession.ResponseDisposition) -> Void) {
-        onResponseReady?(response)
+        lock.lock()
+        if !responseHandled {
+            responseHandled = true
+            lock.unlock()
+            
+            if let httpRes = response as? HTTPURLResponse {
+                let status = httpRes.statusCode
+                if status != 200 {
+                    print("🚨 [ProxySegmentManager] UPSTREAM ERROR \(status) for \(response.url?.absoluteString ?? "unknown")")
+                } else {
+                    print("⬇️ [ProxySegmentManager] Segment START 200 OK: \(response.url?.lastPathComponent ?? "") - Length: \(response.expectedContentLength)")
+                }
+            }
+            onResponseReady?(response, nil)
+        } else {
+            lock.unlock()
+        }
         completionHandler(.allow)
     }
     
@@ -37,13 +54,25 @@ class ProxySegmentDelegate: NSObject, URLSessionDataDelegate {
         self.isFinished = true
         self.responseError = error
         
+        let needsResponseCall = !self.responseHandled
+        if needsResponseCall {
+            self.responseHandled = true
+        }
+        
         if let completion = self.pendingReadCompletion {
             self.pendingReadCompletion = nil
             let outData = self.buffer.isEmpty ? Data() : self.buffer.removeFirst()
             lock.unlock()
+            
+            // Deliver completion safely
             completion(outData, error)
         } else {
             lock.unlock()
+        }
+        
+        if needsResponseCall {
+            print("🚨 [ProxySegmentManager] UPSTREAM HARD ERROR: \(error?.localizedDescription ?? "Unknown")")
+            onResponseReady?(nil, error)
         }
     }
     

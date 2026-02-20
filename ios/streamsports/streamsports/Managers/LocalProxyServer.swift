@@ -171,20 +171,35 @@ class LocalProxyServer {
             // ASYNC STREAMING APPROACH
             // Pipe the bytes directly from the URLSession socket to GCDWebServer's socket.
             var didRespond = false
-            let delegate = ProxySegmentDelegate { response in
+            let delegate = ProxySegmentDelegate { response, error in
                 guard !didRespond else { return }
                 didRespond = true
                 
+                if let _ = error {
+                    completion(GCDWebServerDataResponse(statusCode: 502))
+                    return
+                }
+                
+                guard let response = response else {
+                    completion(GCDWebServerDataResponse(statusCode: 500))
+                    return
+                }
+                
                 var contentType = "video/mp2t"
-                if let httpMsg = response as? HTTPURLResponse, let ct = httpMsg.mimeType {
-                    contentType = ct
+                var statusCode = 200
+                
+                if let httpMsg = response as? HTTPURLResponse {
+                    if let ct = httpMsg.mimeType {
+                        contentType = ct
+                    }
+                    statusCode = httpMsg.statusCode
                 }
                 
                 let streamedResponse = GCDWebServerStreamedResponse(contentType: contentType, asyncStreamBlock: { [weak self] bodyBlock in
                     guard let self = self else { bodyBlock(Data(), nil); return }
                     // Read next chunk from delegate buffer
-                    ProxySegmentManager.shared.readNextChunk(for: urlString) { data, error in
-                        if let e = error {
+                    ProxySegmentManager.shared.readNextChunk(for: urlString) { data, chunkError in
+                        if let e = chunkError {
                             bodyBlock(nil, e)
                         } else if let d = data {
                             bodyBlock(d, nil)
@@ -193,6 +208,12 @@ class LocalProxyServer {
                         }
                     }
                 })
+                
+                streamedResponse.statusCode = statusCode
+                let expectedLength = response.expectedContentLength
+                if expectedLength > 0 {
+                    streamedResponse.contentLength = UInt(expectedLength)
+                }
                 
                 streamedResponse.setValue("no-cache, no-store, must-revalidate", forAdditionalHeader: "Cache-Control")
                 completion(streamedResponse)
