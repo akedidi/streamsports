@@ -122,7 +122,7 @@ class LocalProxyServer {
             }
             
             // Rewrite Playlist
-            let rewritten = self.rewritePlaylist(content: content, cookie: cookie, userAgent: userAgent, referer: referer)
+            let rewritten = self.rewritePlaylist(content: content, baseUrl: url, cookie: cookie, userAgent: userAgent, referer: referer)
             return GCDWebServerDataResponse(data: rewritten.data(using: .utf8)!, contentType: "application/vnd.apple.mpegurl")
         }
         
@@ -203,53 +203,52 @@ class LocalProxyServer {
     }
     
     func getProxyUrl(for originalUrl: String, cookie: String?, userAgent: String?, referer: String?) -> String {
-        guard let encodedUrl = originalUrl.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else { return originalUrl }
-        
-        // Use the actual device IP if available (crucial for Chromecast), fallback to localhost for local AVPlayer
         let hostUrl = webServer?.serverURL?.absoluteString.trimmingCharacters(in: CharacterSet(charactersIn: "/")) ?? "http://localhost:\(port)"
         
-        var base = "\(hostUrl)/playlist.m3u8?url=\(encodedUrl)"
-        if let c = cookie {
-            let encodedCookie = c.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? c
-            base += "&cookie=\(encodedCookie)"
-        }
-        if let ua = userAgent {
-            let encodedUA = ua.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? ua
-            base += "&ua=\(encodedUA)"
-        }
-        if let ref = referer {
-            let encodedRef = ref.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ref
-            base += "&ref=\(encodedRef)"
-        }
-        return base
+        guard var components = URLComponents(string: hostUrl) else { return originalUrl }
+        components.path = "/playlist.m3u8"
+        
+        var queryItems = [URLQueryItem(name: "url", value: originalUrl)]
+        if let c = cookie { queryItems.append(URLQueryItem(name: "cookie", value: c)) }
+        if let ua = userAgent { queryItems.append(URLQueryItem(name: "ua", value: ua)) }
+        if let ref = referer { queryItems.append(URLQueryItem(name: "ref", value: ref)) }
+        
+        components.queryItems = queryItems
+        return components.url?.absoluteString ?? originalUrl
     }
     
     // MARK: - Helper Logic
     
-    private func rewritePlaylist(content: String, cookie: String?, userAgent: String?, referer: String?) -> String {
+    private func rewritePlaylist(content: String, baseUrl: URL, cookie: String?, userAgent: String?, referer: String?) -> String {
         var newLines: [String] = []
         let lines = content.components(separatedBy: "\n")
+        
+        let hostUrl = webServer?.serverURL?.absoluteString.trimmingCharacters(in: CharacterSet(charactersIn: "/")) ?? "http://localhost:\(port)"
         
         for line in lines {
             let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
             
             if !trimmed.hasPrefix("#") && !trimmed.isEmpty {
                 // It's a segment URL
-                if let encodedSeg = trimmed.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) {
-                    let hostUrl = webServer?.serverURL?.absoluteString.trimmingCharacters(in: CharacterSet(charactersIn: "/")) ?? "http://localhost:\(port)"
-                    var proxyLine = "\(hostUrl)/segment?url=\(encodedSeg)"
-                    if let c = cookie {
-                        let encodedCookie = c.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? c
-                        proxyLine += "&cookie=\(encodedCookie)"
-                    }
-                    if let ua = userAgent {
-                        let encodedUA = ua.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? ua
-                        proxyLine += "&ua=\(encodedUA)"
-                    }
-                    if let ref = referer {
-                        let encodedRef = ref.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ref
-                        proxyLine += "&ref=\(encodedRef)"
-                    }
+                guard let absoluteSegUrl = URL(string: trimmed, relativeTo: baseUrl)?.absoluteString else {
+                    newLines.append(trimmed)
+                    continue
+                }
+                
+                guard var components = URLComponents(string: hostUrl) else {
+                    newLines.append(trimmed)
+                    continue
+                }
+                
+                components.path = "/segment"
+                var queryItems = [URLQueryItem(name: "url", value: absoluteSegUrl)]
+                if let c = cookie { queryItems.append(URLQueryItem(name: "cookie", value: c)) }
+                if let ua = userAgent { queryItems.append(URLQueryItem(name: "ua", value: ua)) }
+                if let ref = referer { queryItems.append(URLQueryItem(name: "ref", value: ref)) }
+                
+                components.queryItems = queryItems
+                
+                if let proxyLine = components.url?.absoluteString {
                     newLines.append(proxyLine)
                 } else {
                     newLines.append(trimmed)
