@@ -62,17 +62,7 @@ class LocalProxyServer {
             let userAgent = query["ua"]
             let referer = query["ref"]
             
-            // Add Cache-Buster to rigorously bypass Edge CDN and strict transparent proxies
-            var fetchUrl = url
-            if var components = URLComponents(url: url, resolvingAgainstBaseURL: false) {
-                var items = components.queryItems ?? []
-                items.append(URLQueryItem(name: "_t", value: String(Int(Date().timeIntervalSince1970 * 1000))))
-                components.queryItems = items
-                if let newUrl = components.url {
-                    fetchUrl = newUrl
-                }
-            }
-            
+            let fetchUrl = url
             var req = URLRequest(url: fetchUrl)
             req.cachePolicy = .reloadIgnoringLocalCacheData // CRITICAL: Stop URLSession from caching the Live Playlist
             req.httpShouldHandleCookies = false // Prevent URLSession from injecting stale shared cookies
