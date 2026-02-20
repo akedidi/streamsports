@@ -58,7 +58,7 @@ class LocalProxyServer {
             var statusCode = 500
             
             var req = URLRequest(url: url)
-            req.httpShouldHandleCookies = false // Prevent URLSession from stripping our custom Cookie header
+            req.httpShouldHandleCookies = false // Prevent URLSession from injecting stale shared cookies
             
             // HEADERS: exact match with backend (server.ts)
             // 'Origin': 'https://cdn-live.tv'
@@ -97,11 +97,17 @@ class LocalProxyServer {
             print("➡️ [LocalProxyServer] Fetching Playlist: \(url)")
             print("   Headers: \(req.allHTTPHeaderFields ?? [:])")
             
-            URLSession.shared.dataTask(with: req) { data, response, error in
+            let config = URLSessionConfiguration.ephemeral
+            let session = URLSession(configuration: config)
+            
+            session.dataTask(with: req) { data, response, error in
                 if let httpMsg = response as? HTTPURLResponse {
                     statusCode = httpMsg.statusCode
                     if statusCode != 200 {
                         print("⚠️ [LocalProxyServer] Upstream Error: \(statusCode)")
+                        if let d = data, let s = String(data: d, encoding: .utf8) {
+                             print("   Response Body: \(s)")
+                        }
                     }
                 }
                 responseData = data
@@ -139,7 +145,7 @@ class LocalProxyServer {
             var contentType = "video/mp2t"
             
             var req = URLRequest(url: url)
-            req.httpShouldHandleCookies = false // Prevent URLSession from stripping our custom Cookie header
+            req.httpShouldHandleCookies = false // Prevent URLSession from injecting stale shared cookies
             
             // HEADERS: exact match with playlist handler & backend
             req.setValue("https://cdn-live.tv", forHTTPHeaderField: "Origin")
@@ -203,13 +209,16 @@ class LocalProxyServer {
         let hostUrl = webServer?.serverURL?.absoluteString.trimmingCharacters(in: CharacterSet(charactersIn: "/")) ?? "http://localhost:\(port)"
         
         var base = "\(hostUrl)/playlist.m3u8?url=\(encodedUrl)"
-        if let c = cookie, let encodedCookie = c.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) {
+        if let c = cookie {
+            let encodedCookie = c.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? c
             base += "&cookie=\(encodedCookie)"
         }
-        if let ua = userAgent, let encodedUA = ua.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) {
+        if let ua = userAgent {
+            let encodedUA = ua.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? ua
             base += "&ua=\(encodedUA)"
         }
-        if let ref = referer, let encodedRef = ref.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) {
+        if let ref = referer {
+            let encodedRef = ref.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ref
             base += "&ref=\(encodedRef)"
         }
         return base
@@ -229,13 +238,16 @@ class LocalProxyServer {
                 if let encodedSeg = trimmed.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) {
                     let hostUrl = webServer?.serverURL?.absoluteString.trimmingCharacters(in: CharacterSet(charactersIn: "/")) ?? "http://localhost:\(port)"
                     var proxyLine = "\(hostUrl)/segment?url=\(encodedSeg)"
-                    if let c = cookie, let encodedCookie = c.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) {
+                    if let c = cookie {
+                        let encodedCookie = c.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? c
                         proxyLine += "&cookie=\(encodedCookie)"
                     }
-                    if let ua = userAgent, let encodedUA = ua.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) {
+                    if let ua = userAgent {
+                        let encodedUA = ua.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? ua
                         proxyLine += "&ua=\(encodedUA)"
                     }
-                    if let ref = referer, let encodedRef = ref.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) {
+                    if let ref = referer {
+                        let encodedRef = ref.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ref
                         proxyLine += "&ref=\(encodedRef)"
                     }
                     newLines.append(proxyLine)
