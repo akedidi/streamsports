@@ -48,22 +48,18 @@ class LocalProxyServer {
         guard let webServer = webServer else { return }
         
         // 1. Playlist Handler
-        webServer.addHandler(forMethod: "GET", path: "/playlist.m3u8", request: GCDWebServerRequest.self) { [weak self] request in
+        webServer.addHandler(forMethod: "GET", path: "/playlist.m3u8", request: GCDWebServerRequest.self) { [weak self] request, completion in
             guard let self = self,
                   let query = request.query,
-                  let urlString = query["url"], // Removed as? String
+                  let urlString = query["url"],
                   let url = URL(string: urlString) else {
-                return GCDWebServerDataResponse(statusCode: 400)
+                completion(GCDWebServerDataResponse(statusCode: 400))
+                return
             }
             
-            let cookie = query["cookie"] // Removed as? String
+            let cookie = query["cookie"]
             let userAgent = query["ua"]
             let referer = query["ref"]
-            
-            // Fetch Original Playlist
-            let semaphore = DispatchSemaphore(value: 0)
-            var responseData: Data?
-            var statusCode = 500
             
             // Add Cache-Buster to rigorously bypass Edge CDN and strict transparent proxies
             var fetchUrl = url
@@ -81,26 +77,15 @@ class LocalProxyServer {
             req.httpShouldHandleCookies = false // Prevent URLSession from injecting stale shared cookies
             
             // HEADERS: exact match with backend (server.ts)
-            // 'Origin': 'https://cdn-live.tv'
-            // 'Referer': 'https://cdn-live.tv/'
-            
             req.setValue("https://cdn-live.tv", forHTTPHeaderField: "Origin")
-            
-            // Prefer passed referer, but default to root if missing (matching backend defaults)
             let refToUse = referer ?? "https://cdn-live.tv/"
             req.setValue(refToUse, forHTTPHeaderField: "Referer")
-            
-            // Standard Headers
             req.setValue("*/*", forHTTPHeaderField: "Accept")
             req.setValue("en-US,en;q=0.9", forHTTPHeaderField: "Accept-Language")
             req.setValue("keep-alive", forHTTPHeaderField: "Connection")
-            
-            // Security / Fetch Headers (Backend uses these)
             req.setValue("empty", forHTTPHeaderField: "Sec-Fetch-Dest")
             req.setValue("cors", forHTTPHeaderField: "Sec-Fetch-Mode")
             req.setValue("cross-site", forHTTPHeaderField: "Sec-Fetch-Site")
-            
-            // Cache Control
             req.setValue("no-cache", forHTTPHeaderField: "Pragma")
             req.setValue("no-cache", forHTTPHeaderField: "Cache-Control")
             
@@ -108,16 +93,15 @@ class LocalProxyServer {
             let uaToUse = userAgent ?? "Mozilla/5.0 (iPhone; CPU iPhone OS 17_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Mobile/15E148 Safari/604.1"
             req.setValue(uaToUse, forHTTPHeaderField: "User-Agent")
             
-            // Handle Cookie
             if let c = cookie {
                 req.setValue(c, forHTTPHeaderField: "Cookie")
             }
             
-            // Debug Headers
             print("➡️ [LocalProxyServer] Fetching Playlist: \(url)")
             print("   Headers: \(req.allHTTPHeaderFields ?? [:])")
             
             self.proxySession.dataTask(with: req) { data, response, error in
+                var statusCode = 500
                 if let httpMsg = response as? HTTPURLResponse {
                     statusCode = httpMsg.statusCode
                     if statusCode != 200 {
@@ -127,99 +111,84 @@ class LocalProxyServer {
                         }
                     }
                 }
-                responseData = data
-                semaphore.signal()
+                
+                guard let data = data, statusCode == 200,
+                      let content = String(data: data, encoding: .utf8) else {
+                    completion(GCDWebServerDataResponse(statusCode: statusCode))
+                    return
+                }
+                
+                // Rewrite Playlist
+                let rewritten = self.rewritePlaylist(content: content, baseUrl: url, cookie: cookie, userAgent: userAgent, referer: referer)
+                let proxyResponse = GCDWebServerDataResponse(data: rewritten.data(using: .utf8)!, contentType: "application/vnd.apple.mpegurl")
+                
+                // CRITICAL: Prevent AVPlayer from caching the internal proxy response
+                proxyResponse.setValue("no-cache, no-store, must-revalidate", forAdditionalHeader: "Cache-Control")
+                proxyResponse.setValue("no-cache", forAdditionalHeader: "Pragma")
+                proxyResponse.setValue("0", forAdditionalHeader: "Expires")
+                proxyResponse.setValue("close", forAdditionalHeader: "Connection") // Fast socket teardown
+                
+                completion(proxyResponse)
             }.resume()
-            
-            _ = semaphore.wait(timeout: .now() + 10)
-            
-            guard let data = responseData, statusCode == 200,
-                  let content = String(data: data, encoding: .utf8) else {
-                return GCDWebServerDataResponse(statusCode: statusCode)
-            }
-            
-            // Rewrite Playlist
-            let rewritten = self.rewritePlaylist(content: content, baseUrl: url, cookie: cookie, userAgent: userAgent, referer: referer)
-            let response = GCDWebServerDataResponse(data: rewritten.data(using: .utf8)!, contentType: "application/vnd.apple.mpegurl")
-            
-            // CRITICAL: Prevent AVPlayer from caching the internal proxy response
-            response.setValue("no-cache, no-store, must-revalidate", forAdditionalHeader: "Cache-Control")
-            response.setValue("no-cache", forAdditionalHeader: "Pragma")
-            response.setValue("0", forAdditionalHeader: "Expires")
-            
-            return response
         }
         
         // 2. Segment Handler
-        webServer.addHandler(forMethod: "GET", path: "/segment", request: GCDWebServerRequest.self) { request in
-            guard let query = request.query,
+        webServer.addHandler(forMethod: "GET", path: "/segment", request: GCDWebServerRequest.self) { [weak self] request, completion in
+            guard let self = self,
+                  let query = request.query,
                   let urlString = query["url"],
                   let url = URL(string: urlString) else {
-                return GCDWebServerDataResponse(statusCode: 400)
+                completion(GCDWebServerDataResponse(statusCode: 400))
+                return
             }
             
             let cookie = query["cookie"]
             let userAgent = query["ua"]
             let referer = query["ref"]
             
-            // Fetch Segment
-            let semaphore = DispatchSemaphore(value: 0)
-            var segData: Data?
-            var statusCode = 500
-            var contentType = "video/mp2t"
-            
             var req = URLRequest(url: url)
-            req.cachePolicy = .reloadIgnoringLocalCacheData // Same cache policy for segments just in case
-            req.httpShouldHandleCookies = false // Prevent URLSession from injecting stale shared cookies
+            req.cachePolicy = .reloadIgnoringLocalCacheData
+            req.httpShouldHandleCookies = false
             
-            // HEADERS: exact match with playlist handler & backend
             req.setValue("https://cdn-live.tv", forHTTPHeaderField: "Origin")
-            
             let refToUse = referer ?? "https://cdn-live.tv/"
             req.setValue(refToUse, forHTTPHeaderField: "Referer")
-            
             req.setValue("*/*", forHTTPHeaderField: "Accept")
             req.setValue("en-US,en;q=0.9", forHTTPHeaderField: "Accept-Language")
             req.setValue("keep-alive", forHTTPHeaderField: "Connection")
-            
             req.setValue("empty", forHTTPHeaderField: "Sec-Fetch-Dest")
             req.setValue("cors", forHTTPHeaderField: "Sec-Fetch-Mode")
             req.setValue("cross-site", forHTTPHeaderField: "Sec-Fetch-Site")
-            
             req.setValue("no-cache", forHTTPHeaderField: "Pragma")
             req.setValue("no-cache", forHTTPHeaderField: "Cache-Control")
             
-            // Handle UA
             let uaToUse = userAgent ?? "Mozilla/5.0 (iPhone; CPU iPhone OS 17_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Mobile/15E148 Safari/604.1"
             req.setValue(uaToUse, forHTTPHeaderField: "User-Agent")
             
-            // Handle Cookie
             if let c = cookie {
                 req.setValue(c, forHTTPHeaderField: "Cookie")
             }
             
-            // Debug Headers (Optional, maybe too spammy for segments? Keep it for now)
-            // print("➡️ [LocalProxyServer] Fetching Segment: \(url)") 
-            
             self.proxySession.dataTask(with: req) { data, response, error in
+                var statusCode = 500
+                var contentType = "video/mp2t"
+                
                 if let httpMsg = response as? HTTPURLResponse {
                     statusCode = httpMsg.statusCode
                     if let type = httpMsg.mimeType { contentType = type }
                 }
-                segData = data
-                semaphore.signal()
+                
+                guard let data = data, statusCode == 200 else {
+                    completion(GCDWebServerDataResponse(statusCode: statusCode))
+                    return
+                }
+                
+                let proxyResponse = GCDWebServerDataResponse(data: data, contentType: contentType)
+                proxyResponse.setValue("no-cache, no-store, must-revalidate", forAdditionalHeader: "Cache-Control")
+                proxyResponse.setValue("close", forAdditionalHeader: "Connection") // Fast socket teardown
+                
+                completion(proxyResponse)
             }.resume()
-            
-            _ = semaphore.wait(timeout: .now() + 10)
-            
-            guard let data = segData, statusCode == 200 else {
-                return GCDWebServerDataResponse(statusCode: statusCode)
-            }
-            
-            let response = GCDWebServerDataResponse(data: data, contentType: contentType)
-            // Segments can be cached slightly but typically not an issue. Let's disable caching to be safe against stale tokens
-            response.setValue("no-cache, no-store, must-revalidate", forAdditionalHeader: "Cache-Control")
-            return response
         }
     }
     
