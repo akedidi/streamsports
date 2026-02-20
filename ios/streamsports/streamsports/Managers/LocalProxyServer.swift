@@ -12,6 +12,7 @@ class LocalProxyServer {
         let config = URLSessionConfiguration.ephemeral
         config.urlCache = nil // Absolutely disable all in-memory URLCaching
         config.requestCachePolicy = .reloadIgnoringLocalCacheData
+        config.httpMaximumConnectionsPerHost = 20 // Increase concurrent connections to prevent segment bottlenecks
         return URLSession(configuration: config)
     }()
     
@@ -65,7 +66,7 @@ class LocalProxyServer {
             var fetchUrl = url
             if var components = URLComponents(url: url, resolvingAgainstBaseURL: false) {
                 var items = components.queryItems ?? []
-                items.append(URLQueryItem(name: "_t", value: String(Int(Date().timeIntervalSince1970))))
+                items.append(URLQueryItem(name: "_t", value: String(Int(Date().timeIntervalSince1970 * 1000))))
                 components.queryItems = items
                 if let newUrl = components.url {
                     fetchUrl = newUrl
@@ -126,7 +127,6 @@ class LocalProxyServer {
                 proxyResponse.setValue("no-cache, no-store, must-revalidate", forAdditionalHeader: "Cache-Control")
                 proxyResponse.setValue("no-cache", forAdditionalHeader: "Pragma")
                 proxyResponse.setValue("0", forAdditionalHeader: "Expires")
-                proxyResponse.setValue("close", forAdditionalHeader: "Connection") // Fast socket teardown
                 
                 completion(proxyResponse)
             }.resume()
@@ -185,7 +185,6 @@ class LocalProxyServer {
                 
                 let proxyResponse = GCDWebServerDataResponse(data: data, contentType: contentType)
                 proxyResponse.setValue("no-cache, no-store, must-revalidate", forAdditionalHeader: "Cache-Control")
-                proxyResponse.setValue("close", forAdditionalHeader: "Connection") // Fast socket teardown
                 
                 completion(proxyResponse)
             }.resume()
