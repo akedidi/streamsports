@@ -1,0 +1,6 @@
+Command line invocation:
+    /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild -workspace streamsports.xcworkspace -scheme streamsports -sdk iphonesimulator -destination "generic/platform=iOS Simulator" build
+
+Build settings from command line:
+    SDKROOT = iphonesimulator26.0
+

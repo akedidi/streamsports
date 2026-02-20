@@ -132,7 +132,7 @@ class LocalProxyServer {
             }.resume()
         }
         
-        // 2. Segment Handler
+        // 2. Segment Handler - ASYNC STREAMING (ZERO BUFFERING)
         webServer.addHandler(forMethod: "GET", path: "/segment", request: GCDWebServerRequest.self) { [weak self] request, completion in
             guard let self = self,
                   let query = request.query,
@@ -150,6 +150,7 @@ class LocalProxyServer {
             req.cachePolicy = .reloadIgnoringLocalCacheData
             req.httpShouldHandleCookies = false
             
+            // HEADERS
             req.setValue("https://cdn-live.tv", forHTTPHeaderField: "Origin")
             let refToUse = referer ?? "https://cdn-live.tv/"
             req.setValue(refToUse, forHTTPHeaderField: "Referer")
@@ -159,8 +160,6 @@ class LocalProxyServer {
             req.setValue("empty", forHTTPHeaderField: "Sec-Fetch-Dest")
             req.setValue("cors", forHTTPHeaderField: "Sec-Fetch-Mode")
             req.setValue("cross-site", forHTTPHeaderField: "Sec-Fetch-Site")
-            req.setValue("no-cache", forHTTPHeaderField: "Pragma")
-            req.setValue("no-cache", forHTTPHeaderField: "Cache-Control")
             
             let uaToUse = userAgent ?? "Mozilla/5.0 (iPhone; CPU iPhone OS 17_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Mobile/15E148 Safari/604.1"
             req.setValue(uaToUse, forHTTPHeaderField: "User-Agent")
@@ -169,25 +168,41 @@ class LocalProxyServer {
                 req.setValue(c, forHTTPHeaderField: "Cookie")
             }
             
-            self.proxySession.dataTask(with: req) { data, response, error in
-                var statusCode = 500
+            // ASYNC STREAMING APPROACH
+            // Instead of blocking 3MB into RAM (which starves AVPlayer buffer and causes 12312 stalls),
+            // pipe the bytes directly from the URLSession socket to GCDWebServer's socket.
+            var didRespond = false
+            let delegate = ProxySegmentDelegate { response in
+                guard !didRespond else { return }
+                didRespond = true
+                
                 var contentType = "video/mp2t"
-                
-                if let httpMsg = response as? HTTPURLResponse {
-                    statusCode = httpMsg.statusCode
-                    if let type = httpMsg.mimeType { contentType = type }
+                if let httpMsg = response as? HTTPURLResponse, let ct = httpMsg.mimeType {
+                    contentType = ct
                 }
                 
-                guard let data = data, statusCode == 200 else {
-                    completion(GCDWebServerDataResponse(statusCode: statusCode))
-                    return
-                }
+                let streamedResponse = GCDWebServerStreamedResponse(contentType: contentType, asyncStreamBlock: { [weak self] bodyBlock in
+                    guard let self = self else { bodyBlock(Data(), nil); return }
+                    // Read next chunk from delegate buffer
+                    ProxySegmentManager.shared.readNextChunk(for: urlString) { data, error in
+                        if let e = error {
+                            bodyBlock(nil, e)
+                        } else if let d = data {
+                            bodyBlock(d, nil)
+                        } else {
+                            bodyBlock(Data(), nil) // EOF
+                        }
+                    }
+                })
                 
-                let proxyResponse = GCDWebServerDataResponse(data: data, contentType: contentType)
-                proxyResponse.setValue("no-cache, no-store, must-revalidate", forAdditionalHeader: "Cache-Control")
-                
-                completion(proxyResponse)
-            }.resume()
+                streamedResponse.setValue("no-cache, no-store, must-revalidate", forAdditionalHeader: "Cache-Control")
+                completion(streamedResponse)
+            }
+            
+            let session = URLSession(configuration: self.proxySession.configuration, delegate: delegate, delegateQueue: nil)
+            let task = session.dataTask(with: req)
+            ProxySegmentManager.shared.register(task: task, urlString: urlString)
+            task.resume()
         }
     }
     
@@ -219,6 +234,11 @@ class LocalProxyServer {
         var newLines: [String] = []
         let lines = content.components(separatedBy: "\n")
         
+        // REVERT TO LOCAL PROXY FOR SEGMENTS.
+        // Direct AVPlayer CDN fetches failed (15514 / 12312) because CDN rigidly blocks native iOS requests 
+        // regardless of AVURLAssetHTTPCookiesKey injection.
+        let hostUrl = webServer?.serverURL?.absoluteString.trimmingCharacters(in: CharacterSet(charactersIn: "/")) ?? "http://localhost:\(port)"
+        
         for line in lines {
             let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
             
@@ -229,10 +249,24 @@ class LocalProxyServer {
                     continue
                 }
                 
-                // RETURN DIRECT CDN URL: Bypasses the localhost segment proxy entirely!
-                // This eliminates the 3.6MB memory buffering latency inside URLSession and GCDWebServer,
-                // fixing the 2-3s micro-stutters and "-12312 PlaylistNotUpdated" sequence freezing.
-                newLines.append(absoluteSegUrl)
+                guard var components = URLComponents(string: hostUrl) else {
+                    newLines.append(trimmed)
+                    continue
+                }
+                
+                components.path = "/segment"
+                var queryItems = [URLQueryItem(name: "url", value: absoluteSegUrl)]
+                if let c = cookie { queryItems.append(URLQueryItem(name: "cookie", value: c)) }
+                if let ua = userAgent { queryItems.append(URLQueryItem(name: "ua", value: ua)) }
+                if let ref = referer { queryItems.append(URLQueryItem(name: "ref", value: ref)) }
+                
+                components.queryItems = queryItems
+                
+                if let proxyLine = components.url?.absoluteString {
+                    newLines.append(proxyLine)
+                } else {
+                    newLines.append(trimmed)
+                }
             } else {
                 newLines.append(line)
             }
