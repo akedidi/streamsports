@@ -1,5 +1,6 @@
 import Foundation
 import WebKit
+import UIKit
 
 /// WebView-based stream resolver for cdn-live.tv
 /// Loads the player page in an invisible WebView and intercepts M3U8 requests
@@ -9,34 +10,30 @@ class WebViewStreamResolver: NSObject, WKNavigationDelegate, WKScriptMessageHand
     static let shared = WebViewStreamResolver()
     
     private var webView: WKWebView?
-    private var completion: ((String?, String?) -> Void)?
+    private var completion: ((String?, String?, String?) -> Void)?
     private var timeoutTimer: Timer?
-    private let timeout: TimeInterval = 15.0
+    private let timeout: TimeInterval = 20.0  // Augmenté de 15 → 20s
     
-    /// Resolves a player URL by loading it in a WebView and intercepting M3U8 requests
-    /// - Parameters:
-    ///   - playerUrl: The cdn-live.tv player URL
-    ///   - completion: Callback with (streamUrl, cookie) or (nil, nil) on failure
-    func resolve(playerUrl: String, completion: @escaping (String?, String?) -> Void) {
-        // Clean up any previous resolution
+    // MARK: - Public API
+    
+    func resolve(playerUrl: String, completion: @escaping (String?, String?, String?) -> Void) {
         cleanup()
-        
         self.completion = completion
         
         print("[WebViewResolver] Starting resolution for: \(playerUrl)")
         
-        // Create WebView configuration
+        // Configuration WebView
         let config = WKWebViewConfiguration()
         config.allowsInlineMediaPlayback = true
         config.mediaTypesRequiringUserActionForPlayback = []
         
-        // Inject JavaScript to intercept network requests
+        // JavaScript pour intercepter les requêtes réseau vers .m3u8
         let script = """
         (function() {
             // Intercept XMLHttpRequest
             const originalOpen = XMLHttpRequest.prototype.open;
             XMLHttpRequest.prototype.open = function(method, url) {
-                if (url.includes('.m3u8')) {
+                if (typeof url === 'string' && url.includes('.m3u8')) {
                     window.webkit.messageHandlers.m3u8Handler.postMessage(url);
                 }
                 return originalOpen.apply(this, arguments);
@@ -45,15 +42,14 @@ class WebViewStreamResolver: NSObject, WKNavigationDelegate, WKScriptMessageHand
             // Intercept fetch
             const originalFetch = window.fetch;
             window.fetch = function(url, options) {
-                if (typeof url === 'string' && url.includes('.m3u8')) {
-                    window.webkit.messageHandlers.m3u8Handler.postMessage(url);
-                } else if (url instanceof Request && url.url.includes('.m3u8')) {
-                    window.webkit.messageHandlers.m3u8Handler.postMessage(url.url);
+                const urlStr = (url instanceof Request) ? url.url : String(url);
+                if (urlStr.includes('.m3u8')) {
+                    window.webkit.messageHandlers.m3u8Handler.postMessage(urlStr);
                 }
                 return originalFetch.apply(this, arguments);
             };
             
-            // Also watch for video element sources
+            // Watch video elements
             const observer = new MutationObserver(function(mutations) {
                 mutations.forEach(function(mutation) {
                     if (mutation.type === 'attributes' && mutation.attributeName === 'src') {
@@ -65,7 +61,6 @@ class WebViewStreamResolver: NSObject, WKNavigationDelegate, WKScriptMessageHand
                 });
             });
             
-            // Observe all video elements
             document.addEventListener('DOMContentLoaded', function() {
                 const videos = document.getElementsByTagName('video');
                 for (let video of videos) {
@@ -74,6 +69,12 @@ class WebViewStreamResolver: NSObject, WKNavigationDelegate, WKScriptMessageHand
                         window.webkit.messageHandlers.m3u8Handler.postMessage(video.src);
                     }
                 }
+                // Aussi les sources HLS.js / OPlayer (via src)
+                document.querySelectorAll('[src]').forEach(el => {
+                    if (el.src && el.src.includes('.m3u8')) {
+                        window.webkit.messageHandlers.m3u8Handler.postMessage(el.src);
+                    }
+                });
             });
         })();
         """
@@ -82,23 +83,42 @@ class WebViewStreamResolver: NSObject, WKNavigationDelegate, WKScriptMessageHand
         config.userContentController.addUserScript(userScript)
         config.userContentController.add(self, name: "m3u8Handler")
         
-        // Create WebView (invisible, minimal size)
-        webView = WKWebView(frame: CGRect(x: 0, y: 0, width: 320, height: 240), configuration: config)
-        webView?.navigationDelegate = self
+        // Créer le WebView
+        let wv = WKWebView(frame: CGRect(x: 0, y: 0, width: 1, height: 1), configuration: config)
+        wv.isHidden = true
+        wv.alpha = 0
         
-        // Set timeout
-        timeoutTimer = Timer.scheduledTimer(withTimeInterval: timeout, repeats: false) { [weak self] _ in
-            print("[WebViewResolver] ⏱️ Timeout - no M3U8 found")
-            self?.finish(streamUrl: nil, cookie: nil)
-        }
-        
-        // Load the player page
-        if let url = URL(string: playerUrl) {
-            let request = URLRequest(url: url)
-            webView?.load(request)
-        } else {
-            print("[WebViewResolver] ❌ Invalid URL")
-            finish(streamUrl: nil, cookie: nil)
+        // ⚡ CRITIQUE: Attacher à la fenêtre principale pour éviter que iOS tue les processus WebKit
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            
+            if let window = UIApplication.shared.connectedScenes
+                .compactMap({ $0 as? UIWindowScene })
+                .first?.windows.first {
+                window.addSubview(wv)
+                print("[WebViewResolver] ✅ WebView attached to window (prevents WebKit process kill)")
+            } else {
+                print("[WebViewResolver] ⚠️ No window found — WebView running detached")
+            }
+            
+            // Desktop UA — requis pour que le player génère le bon token
+            wv.customUserAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            wv.navigationDelegate = self
+            self.webView = wv
+            
+            // Timeout
+            self.timeoutTimer = Timer.scheduledTimer(withTimeInterval: self.timeout, repeats: false) { [weak self] _ in
+                print("[WebViewResolver] ⏱️ Timeout - no M3U8 found")
+                self?.finish(streamUrl: nil, cookie: nil)
+            }
+            
+            // Charger la page
+            if let url = URL(string: playerUrl) {
+                wv.load(URLRequest(url: url))
+            } else {
+                print("[WebViewResolver] ❌ Invalid URL")
+                self.finish(streamUrl: nil, cookie: nil)
+            }
         }
     }
     
@@ -106,13 +126,9 @@ class WebViewStreamResolver: NSObject, WKNavigationDelegate, WKScriptMessageHand
     
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
         guard message.name == "m3u8Handler",
-              let urlString = message.body as? String else {
-            return
-        }
+              let urlString = message.body as? String else { return }
         
         print("[WebViewResolver] 🎯 Intercepted M3U8: \(urlString.prefix(80))...")
-        
-        // Extract cookie from WebView's cookie store
         extractCookie { [weak self] cookie in
             self?.finish(streamUrl: urlString, cookie: cookie)
         }
@@ -125,16 +141,23 @@ class WebViewStreamResolver: NSObject, WKNavigationDelegate, WKScriptMessageHand
     }
     
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+        let nsError = error as NSError
+        // Ignorer les erreurs de navigation annulée (ex: redirect) — le JS peut encore intercepter
+        if nsError.code == NSURLErrorCancelled { return }
         print("[WebViewResolver] ❌ Navigation failed: \(error.localizedDescription)")
         finish(streamUrl: nil, cookie: nil)
     }
     
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+        let nsError = error as NSError
+        // Ignorer les erreurs de navigation annulée (redirect courant dans les players)
+        if nsError.code == NSURLErrorCancelled { return }
         print("[WebViewResolver] ❌ Provisional navigation failed: \(error.localizedDescription)")
-        finish(streamUrl: nil, cookie: nil)
+        // Ne pas appeler finish ici — laisser le timeout gérer si le JS n'intercepte rien
+        // Certains players peuvent échouer partiellement mais le JS intercepte quand même
     }
     
-    // MARK: - Helper Methods
+    // MARK: - Cookie Extraction
     
     private func extractCookie(completion: @escaping (String?) -> Void) {
         guard let cookieStore = webView?.configuration.websiteDataStore.httpCookieStore else {
@@ -143,62 +166,36 @@ class WebViewStreamResolver: NSObject, WKNavigationDelegate, WKScriptMessageHand
         }
         
         cookieStore.getAllCookies { cookies in
-            // Find PHPSESSID cookie
             if let sessionCookie = cookies.first(where: { $0.name == "PHPSESSID" }) {
                 let cookieString = "\(sessionCookie.name)=\(sessionCookie.value)"
                 print("[WebViewResolver] 🍪 Extracted cookie: \(cookieString)")
-                
-                // CRITICAL: Inject cookie into system HTTPCookieStorage
-                // The original cookie is for cdn-live.tv, but streams are on edge.cdn-live.ru
-                // So we create cookies for both domains
-                
-                // 1. Original cookie for cdn-live.tv
                 HTTPCookieStorage.shared.setCookie(sessionCookie)
-                
-                // 2. Create cookie for .cdn-live.ru domain (edge server domain)
-                var cookieProperties: [HTTPCookiePropertyKey: Any] = [
-                    .name: sessionCookie.name,
-                    .value: sessionCookie.value,
-                    .domain: ".cdn-live.ru",
-                    .path: "/",
-                    .secure: "TRUE"
-                ]
-                
-                if let expiresDate = sessionCookie.expiresDate {
-                    cookieProperties[.expires] = expiresDate
-                }
-                
-                if let edgeCookie = HTTPCookie(properties: cookieProperties) {
-                    HTTPCookieStorage.shared.setCookie(edgeCookie)
-                    print("[WebViewResolver] 💉 Injected cookies for cdn-live.tv AND cdn-live.ru domains")
-                } else {
-                    print("[WebViewResolver] ⚠️ Failed to create edge domain cookie")
-                }
-                
                 completion(cookieString)
             } else {
-                print("[WebViewResolver] ⚠️ No PHPSESSID cookie found")
+                print("[WebViewResolver] ℹ️ No PHPSESSID cookie (not required for cdn-live.tv)")
                 completion(nil)
             }
         }
     }
     
+    // MARK: - Finish & Cleanup
+    
     private func finish(streamUrl: String?, cookie: String?) {
         timeoutTimer?.invalidate()
         timeoutTimer = nil
         
-        if let streamUrl = streamUrl {
+        if let url = streamUrl {
             print("[WebViewResolver] ✅ Resolution successful")
+            webView?.evaluateJavaScript("navigator.userAgent") { [weak self] result, _ in
+                let userAgent = result as? String
+                print("[WebViewResolver] 📱 UA: \(userAgent?.prefix(50) ?? "nil")")
+                self?.completion?(url, cookie, userAgent)
+                self?.cleanup()
+            }
         } else {
             print("[WebViewResolver] ❌ Resolution failed")
-        }
-        
-        completion?(streamUrl, cookie)
-        completion = nil
-        
-        // Clean up WebView after a delay (to allow any pending JS to complete)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
-            self?.cleanup()
+            completion?(nil, nil, nil)
+            cleanup()
         }
     }
     
@@ -208,6 +205,10 @@ class WebViewStreamResolver: NSObject, WKNavigationDelegate, WKScriptMessageHand
         webView?.navigationDelegate = nil
         webView?.configuration.userContentController.removeScriptMessageHandler(forName: "m3u8Handler")
         webView?.stopLoading()
+        DispatchQueue.main.async {
+            self.webView?.removeFromSuperview()
+        }
         webView = nil
+        completion = nil
     }
 }

@@ -1,0 +1,12 @@
+node_modules
+dist
+.DS_Store
+*.log
+debug_*.ts
+test*.ts
+verify_*.ts
+compare_*.ts
+check_*.ts
+*_dump.json
+*_report.json
+api_response.json

@@ -5,9 +5,11 @@ import Combine
 // Enhanced Video Player with PiP Support (Custom Implementation for Manual Control)
 struct VideoPlayerView: UIViewRepresentable {
     let player: AVPlayer
+    var isZoomedToFill: Bool = false
     
     func makeUIView(context: Context) -> PlayerUIView {
         let view = PlayerUIView(player: player)
+        view.setZoomed(isZoomedToFill)
         // Setup PiP Controller
         context.coordinator.setupPiP(for: view.playerLayer)
         return view
@@ -18,6 +20,8 @@ struct VideoPlayerView: UIViewRepresentable {
         if uiView.playerLayer.player != player {
             uiView.playerLayer.player = player
         }
+        // Update zoom/gravity
+        uiView.setZoomed(isZoomedToFill)
     }
     
     func makeCoordinator() -> Coordinator {
@@ -84,10 +88,18 @@ class PlayerUIView: UIView {
         playerLayer.videoGravity = .resizeAspect
         layer.addSublayer(playerLayer)
         backgroundColor = .black
+        clipsToBounds = true
     }
     
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
+    }
+    
+    func setZoomed(_ fill: Bool) {
+        let gravity: AVLayerVideoGravity = fill ? .resizeAspectFill : .resizeAspect
+        if playerLayer.videoGravity != gravity {
+            playerLayer.videoGravity = gravity
+        }
     }
     
     override func layoutSubviews() {
@@ -107,6 +119,8 @@ struct CustomPlayerOverlay: View {
     @State private var duration: Double = 0
     @State private var isSeeking = false
     @State private var showCastSheet = false
+    // Pinch-to-zoom: false = aspect fit (default), true = aspect fill (ignores safe areas)
+    @State private var isZoomedToFill: Bool = false
 
     
     // Internal state
@@ -122,8 +136,10 @@ struct CustomPlayerOverlay: View {
     var body: some View {
 
         GeometryReader { geometry in
-            VStack {
-                Spacer() // Pushes overlay to bottom when mini
+            VStack { // Main container
+                if manager.isMiniPlayer {
+                    Spacer() // Pushes overlay to bottom ONLY when mini
+                }
                 
                 if let channel = manager.currentChannel {
                     // CHECK FOR CHROMECAST CONNECTION
@@ -220,7 +236,7 @@ struct CustomPlayerOverlay: View {
                                 Color.black
                                 
                                 if let player = manager.player {
-                                    VideoPlayerView(player: player)
+                                    VideoPlayerView(player: player, isZoomedToFill: isZoomedToFill)
                                         .onTapGesture {
                                             if !manager.isMiniPlayer {
                                                 toggleControls() 
@@ -262,6 +278,24 @@ struct CustomPlayerOverlay: View {
                                     }
                                 }
                             }
+                            // Pinch-to-zoom: simultaneous so it works even over controls overlay
+                            // simultaneousGesture allows it to coexist with drag and tap gestures
+                            .simultaneousGesture(
+                                MagnificationGesture()
+                                    .onChanged { value in
+                                        if !manager.isMiniPlayer {
+                                            print("[Zoom] Pinch value: \(value)")
+                                        }
+                                    }
+                                    .onEnded { value in
+                                        guard !manager.isMiniPlayer else { return }
+                                        let fill = value > 1.0
+                                        print("[Zoom] Pinch ended: \(value) → zoom=\(fill)")
+                                        withAnimation(.easeInOut(duration: 0.25)) {
+                                            isZoomedToFill = fill
+                                        }
+                                    }
+                            )
                             // Geometry Logic
                             .frame(
                                 width: manager.isMiniPlayer ? 107 : (isLandscapeMode ? nil : geometry.size.width),
@@ -405,14 +439,15 @@ struct CustomPlayerOverlay: View {
                         }
                     }
                     // Height Logic
-                    .frame(height: manager.isMiniPlayer ? miniPlayerHeight : (isLandscapeMode ? nil : geometry.size.height)) 
+                    // Height Logic - explicit height to ensure full screen coverage
+                    .frame(height: manager.isMiniPlayer ? miniPlayerHeight : geometry.size.height) 
                     // Use full geometry height in portrait expanded, to cover search bar
                     
                     .background(Color.black)
-                    .edgesIgnoringSafeArea(manager.isMiniPlayer ? [] : .all)
+                    // .edgesIgnoringSafeArea removed here, moved to GeometryReader container for true fullscreen
                     
                     // Mini Player Position
-                    .offset(y: manager.isMiniPlayer ? -55 : (isLandscapeMode ? 0 : max(0, dragOffset)))
+                    .offset(y: manager.isMiniPlayer ? -85 : (isLandscapeMode ? 0 : max(0, dragOffset)))
                     
                     // Drag to Minimize
                     .simultaneousGesture(
@@ -442,8 +477,11 @@ struct CustomPlayerOverlay: View {
                     } // END ELSE (Local Player)
                     } // Close Group
                 } // Close if let
-            } // Close VStack
+             } // Close VStack
         } // Close GeometryReader
+        // Only ignore safe area in LANDSCAPE (fullscreen) or MINI player
+        // In Portrait Detail mode, we want to respect top safe area (under notch)
+        .edgesIgnoringSafeArea(manager.isMiniPlayer || isLandscapeMode ? .all : []) 
         .onReceive(timer) { _ in
             guard let player = manager.player else { return }
             // Auto-sync status

@@ -1,0 +1,27 @@
+# 
+
+#EXTM3U
+#
+#    /$$$$$$  /$$$$$$$  /$$   /$$       /$$       /$$                           /$$$$$$$$ /$$    /$$
+#   /$$__  $$| $$__  $$| $$$ | $$      | $$      |__/                          |__  $$__/| $$   | $$
+#  | $$  \__/| $$  \ $$| $$$$| $$      | $$       /$$ /$$    /$$ /$$$$$$          | $$   | $$   | $$
+#  | $$      | $$  | $$| $$ $$ $$      | $$      | $$|  $$  /$$//$$__  $$         | $$   |  $$ / $$/
+#  | $$      | $$  | $$| $$  $$$$      | $$      | $$ \  $$/$$/| $$$$$$$$         | $$    \  $$ $$/
+#  | $$    $$| $$  | $$| $$\  $$$      | $$      | $$  \  $$$/ | $$_____/         | $$     \  $$$/
+#  |  $$$$$$/| $$$$$$$/| $$ \  $$      | $$$$$$$$| $$   \  $/  |  $$$$$$$         | $$      \  $/
+#   \______/ |_______/ |__/  \__/      |________/|__/    \_/    \_______/         |__/       \_/
+#
+#
+#                                         cdn-live-tv.ru
+#EXT-X-TARGETDURATION:6
+#EXT-X-VERSION:3
+#EXT-X-MEDIA-SEQUENCE:23563
+#EXT-X-PROGRAM-DATE-TIME:2026-02-08T12:55:33.765Z
+#EXTINF:5.005,
+https://edge.cdn-google.ru/secure/api/v1/us-abc/MjAyNi8wMi8wOC8xMi81NS8zMy0wNTAwNQ.ts?token=780f8a205fe12d65f817064cfccc8a5d2184ce92ebde539d9dfcd564ad81e7bb.1770553868.b4e4f83e9172498a5a3a29bfc4347085.5013e1317dd6f56078c80ae897068826.de532274563dc22db7a939e64752f7a0&signature=b769a4d973ec5392cec987b5ca418c9ea65dd552bed5f591fe05a69f26a693f2
+#EXTINF:5.005,
+https://edge.cdn-google.ru/secure/api/v1/us-abc/MjAyNi8wMi8wOC8xMi81NS8zOC0wNTAwNQ.ts?token=780f8a205fe12d65f817064cfccc8a5d2184ce92ebde539d9dfcd564ad81e7bb.1770553868.b4e4f83e9172498a5a3a29bfc4347085.5013e1317dd6f56078c80ae897068826.de532274563dc22db7a939e64752f7a0&signature=b769a4d973ec5392cec987b5ca418c9ea65dd552bed5f591fe05a69f26a693f2
+#EXTINF:5.005,
+https://edge.cdn-google.ru/secure/api/v1/us-abc/MjAyNi8wMi8wOC8xMi81NS80My0wNTAwNQ.ts?token=780f8a205fe12d65f817064cfccc8a5d2184ce92ebde539d9dfcd564ad81e7bb.1770553868.b4e4f83e9172498a5a3a29bfc4347085.5013e1317dd6f56078c80ae897068826.de532274563dc22db7a939e64752f7a0&signature=b769a4d973ec5392cec987b5ca418c9ea65dd552bed5f591fe05a69f26a693f2
+#EXTINF:5.005,
+https://edge.cdn-google.ru/secure/api/v1/us-abc/MjAyNi8wMi8wOC8xMi81NS80OC0wNTAwNQ.ts?token=780f8a205fe12d65f817064cfccc8a5d2184ce92ebde539d9dfcd564ad81e7bb.1770553868.b4e4f83e9172498a5a3a29bfc4347085.5013e1317dd6f56078c80ae897068826.de532274563dc22db7a939e64752f7a0&signature=b769a4d973ec5392cec987b5ca418c9ea65dd552bed5f591fe05a69f26a693f2

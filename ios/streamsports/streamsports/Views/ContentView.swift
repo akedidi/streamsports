@@ -4,6 +4,7 @@ struct ContentView: View {
     @StateObject private var viewModel = AppViewModel()
     @State private var expandedEvents: Set<String> = []
     @State private var selectedTab: Int = 0 // 0: Events, 1: Channels
+    @State private var showDebugTest = false // Debug CDN-Live test
     
     @ObservedObject var playerManager = PlayerManager.shared // Observe for animation
     @Environment(\.scenePhase) private var scenePhase
@@ -58,6 +59,17 @@ struct ContentView: View {
             }
         }
         .preferredColorScheme(.dark)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button(action: { showDebugTest = true }) {
+                    Image(systemName: "antenna.radiowaves.left.and.right")
+                        .foregroundColor(.green)
+                }
+            }
+        }
+        .sheet(isPresented: $showDebugTest) {
+            CDNLiveTestView()
+        }
     }
     
     func toggleExpansion(_ id: String) {

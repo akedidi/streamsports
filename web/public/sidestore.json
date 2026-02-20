@@ -12,11 +12,11 @@
       "versions": [
         {
           "version": "1.0",
-          "date": "2026-01-27",
-          "size": 7732804,
+          "date": "2026-02-20",
+          "size": 7875712,
           "downloadURL": "https://raw.githubusercontent.com/akedidi/streamsports/main/web/public/streamsports.ipa",
           "minOSVersion": "16.0",
-          "localizedDescription": "Optimize Scroll Performance"
+          "localizedDescription": "Minor update and bug fixes"
         }
       ]
     }

@@ -5,7 +5,7 @@ class NetworkManager: ObservableObject {
     static let shared = NetworkManager()
     
     // Using the Vercel deployment as the API source
-    private let baseURL = "https://streamsports-wine.vercel.app/api"
+    private let baseURL = "https://streamsports-proxy-718568928645.us-central1.run.app/api"
     
     func fetchChannels(completion: @escaping ([SportsChannel]) -> Void) {
         guard let url = URL(string: "\(baseURL)/channels") else { return }
@@ -70,69 +70,44 @@ class NetworkManager: ObservableObject {
     /// Resolves a stream URL for playback
     /// For cdn-live.tv streams, uses direct resolution on-device to avoid IP binding issues
     /// For other streams, falls back to the backend proxy
-    func resolveStream(url: String, completion: @escaping (String?, String?, String?) -> Void) {
+    /// - Parameters:
+    ///   - url: The channel URL
+    ///   - completion: Callback with (proxyUrl, rawUrl, cookie, userAgent)
+    func resolveStream(url: String, completion: @escaping (String?, String?, String?, String?) -> Void) {
         // Check if this is a cdn-live.tv stream that we can resolve directly
         if url.contains("cdn-live.tv") {
             print("[NetworkManager] Using DIRECT resolution for cdn-live.tv")
             resolveDirectly(url: url, completion: completion)
         } else {
             print("[NetworkManager] Using PROXY resolution for non-cdn-live stream")
-            resolveViaProxy(url: url, completion: completion)
+            resolveViaProxy(url: url) { proxy, raw, cookie in
+                completion(proxy, raw, cookie, nil)
+            }
         }
     }
     
-    /// Resolves a cdn-live.tv stream using hybrid WebView + Proxy approach
-    /// 1. WebView resolves the player page → gets M3U8 URL with token bound to iPhone IP
-    /// 2. Proxy fetches the resolved URL directly via /api/proxy → bypasses SSL/auth issues
-    /// 3. AVPlayer plays via proxy → stable playback
-    private func resolveDirectly(url: String, completion: @escaping (String?, String?, String?) -> Void) {
-        WebViewStreamResolver.shared.resolve(playerUrl: url) { streamUrl, cookie in
+    /// Resolves a cdn-live.tv stream using direct resolution
+    /// 1. WebView resolves the player page → gets M3U8 URL with IP-bound token
+    /// 2. Returns URL directly to PlayerManager for native playback (NO local proxy)
+    ///
+    /// WHY no local proxy: token is IP/session-bound to the WebView.
+    /// URLSession (from LocalProxyServer) uses a different socket → 401.
+    /// Tests confirmed: segments accessible without any headers/cookies.
+    private func resolveDirectly(url: String, completion: @escaping (String?, String?, String?, String?) -> Void) {
+        WebViewStreamResolver.shared.resolve(playerUrl: url) { streamUrl, cookie, userAgent in
             if let streamUrl = streamUrl {
                 print("[NetworkManager] WebView resolution SUCCESS: \(streamUrl.prefix(80))...")
-                print("[NetworkManager] Using HYBRID approach: proxying resolved URL for stable playback")
-                
-                // HYBRID APPROACH: Build /api/proxy URL with proper encoding
-                // The server requires: url, referer, cookie parameters
-                // OPTIMIZATION: Try force_proxy=false to let AVPlayer fetch segments directly (saves bandwidth)
-                // ATS Exceptions added to Info.plist should now allow direct HTTPS connections.
-                guard var components = URLComponents(string: "\(self.baseURL)/proxy") else {
-                    print("[NetworkManager] Failed to create URLComponents")
-                    completion(nil, nil, nil)
-                    return
-                }
-                
-                components.queryItems = [
-                    URLQueryItem(name: "url", value: streamUrl),
-                    URLQueryItem(name: "referer", value: "https://cdn-live.tv/"),
-                    // REVERTED: Direct fetch failed with SSL error -12939 despite ATS.
-                    // Must use proxy (now optimized with pipe/stream) for all segments.
-                    URLQueryItem(name: "force_proxy", value: "true") 
-                ]
-                // Add cookie if available
-                if let cookie = cookie {
-                    components.queryItems?.append(URLQueryItem(name: "cookie", value: cookie))
-                    print("[NetworkManager] Including cookie in proxy request")
-                }
-                
-                // (force_proxy is already set above)
-                
-                guard let proxyUrl = components.url else {
-                    print("[NetworkManager] Failed to build proxy URL")
-                    completion(nil, nil, nil)
-                    return
-                }
-                
-                let proxyUrlString = proxyUrl.absoluteString
-                print("[NetworkManager] Proxy URL: \(proxyUrlString.prefix(120))...")
+                print("[NetworkManager] Playing DIRECTLY (no local proxy needed — token in URL)")
                 
                 DispatchQueue.main.async {
-                    // Return proxy URL for playback
-                    completion(proxyUrlString, streamUrl, cookie)
+                    // Pass nil for proxyUrl, streamUrl for rawUrl, cookie for cookie, and userAgent
+                    completion(nil, streamUrl, cookie, userAgent)
                 }
             } else {
-                print("[NetworkManager] WebView resolution FAILED, falling back to full proxy")
-                // Fall back to full proxy resolution of original player URL
-                self.resolveViaProxy(url: url, completion: completion)
+                print("[NetworkManager] WebView resolution FAILED, falling back to backend proxy")
+                self.resolveViaProxy(url: url) { proxyUrl, rawUrl, cookie in
+                    completion(proxyUrl, rawUrl, cookie, nil)
+                }
             }
         }
     }
@@ -181,7 +156,7 @@ class NetworkManager: ObservableObject {
                     if streamPath.hasPrefix("http") {
                         finalProxyUrl = streamPath
                     } else {
-                        let host = "https://streamsports-wine.vercel.app"
+                        let host = "https://streamsports-proxy-718568928645.us-central1.run.app"
                         finalProxyUrl = "\(host)\(streamPath)"
                     }
                 } else {

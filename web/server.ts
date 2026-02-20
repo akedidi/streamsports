@@ -5,7 +5,7 @@ import { Sports99Client } from './Sports99Client';
 import { URL } from 'url';
 
 const app = express();
-const port = 3000;
+const port = process.env.PORT || 3000;
 const client = new Sports99Client();
 
 // Serve static files
@@ -68,8 +68,13 @@ app.get('/api/stream', async (req, res) => {
     }
 
     try {
-        console.log(`[API] Resolving stream for: ${playerUrl}`);
-        const result = await client.resolveStreamUrl(playerUrl);
+        // Get client IP to forward to cdn-live.tv for token binding
+        const clientIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim()
+            || req.socket.remoteAddress
+            || undefined;
+
+        console.log(`[API] Resolving stream for: ${playerUrl} (Client IP: ${clientIp})`);
+        const result = await client.resolveStreamUrl(playerUrl, clientIp);
 
         if (result && result.streamUrl) {
             let proxyUrl: string;
