@@ -195,7 +195,6 @@ class LocalProxyServer {
                 })
                 
                 streamedResponse.setValue("no-cache, no-store, must-revalidate", forAdditionalHeader: "Cache-Control")
-                streamedResponse.setValue("close", forAdditionalHeader: "Connection") // Force close to free sockets aggressively
                 completion(streamedResponse)
             }
             
