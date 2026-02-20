@@ -219,8 +219,6 @@ class LocalProxyServer {
         var newLines: [String] = []
         let lines = content.components(separatedBy: "\n")
         
-        let hostUrl = webServer?.serverURL?.absoluteString.trimmingCharacters(in: CharacterSet(charactersIn: "/")) ?? "http://localhost:\(port)"
-        
         for line in lines {
             let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
             
@@ -231,24 +229,10 @@ class LocalProxyServer {
                     continue
                 }
                 
-                guard var components = URLComponents(string: hostUrl) else {
-                    newLines.append(trimmed)
-                    continue
-                }
-                
-                components.path = "/segment"
-                var queryItems = [URLQueryItem(name: "url", value: absoluteSegUrl)]
-                if let c = cookie { queryItems.append(URLQueryItem(name: "cookie", value: c)) }
-                if let ua = userAgent { queryItems.append(URLQueryItem(name: "ua", value: ua)) }
-                if let ref = referer { queryItems.append(URLQueryItem(name: "ref", value: ref)) }
-                
-                components.queryItems = queryItems
-                
-                if let proxyLine = components.url?.absoluteString {
-                    newLines.append(proxyLine)
-                } else {
-                    newLines.append(trimmed)
-                }
+                // RETURN DIRECT CDN URL: Bypasses the localhost segment proxy entirely!
+                // This eliminates the 3.6MB memory buffering latency inside URLSession and GCDWebServer,
+                // fixing the 2-3s micro-stutters and "-12312 PlaylistNotUpdated" sequence freezing.
+                newLines.append(absoluteSegUrl)
             } else {
                 newLines.append(line)
             }

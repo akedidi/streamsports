@@ -140,7 +140,41 @@ class PlayerManager: ObservableObject {
                     print("[PlayerManager] Using Backend Proxy Playback")
                 }
                 
-                let asset = AVURLAsset(url: finalUrl)
+                var assetOptions: [String: Any] = [:]
+                
+                // NATIVELY INJECT COOKIES INTO AVPLAYER!
+                // This ensures AVPlayer sends the token to the CDN for direct segment streaming (no proxy latency)
+                if let c = cookie {
+                    let parts = c.components(separatedBy: "=")
+                    if parts.count == 2 {
+                        let name = parts[0].trimmingCharacters(in: .whitespaces)
+                        let value = parts[1].trimmingCharacters(in: .whitespaces)
+                        // Note: AVPlayer needs a valid domain to match the cookie to the stream
+                        let cookieDomain = url.host ?? "cdn-live.tv"
+                        
+                        let cookieProperties: [HTTPCookiePropertyKey: Any] = [
+                            .name: name,
+                            .value: value,
+                            .domain: cookieDomain,
+                            .path: "/",
+                            .secure: "TRUE"
+                        ]
+                        
+                        if let httpCookie = HTTPCookie(properties: cookieProperties) {
+                            assetOptions[AVURLAssetHTTPCookiesKey] = [httpCookie]
+                            print("🍪 [PlayerManager] Injected native HTTPCookie for \(cookieDomain): \(name)=\(value)")
+                        }
+                    }
+                }
+                
+                // Inject User-Agent just in case the CDN blocks default AppleCoreMedia
+                var headers: [String: String] = [:]
+                if let ua = userAgent { headers["User-Agent"] = ua }
+                headers["Referer"] = "https://cdn-live.tv/"
+                headers["Origin"] = "https://cdn-live.tv"
+                assetOptions["AVURLAssetHTTPHeaderFieldsKey"] = headers
+                
+                let asset = AVURLAsset(url: finalUrl, options: assetOptions)
                 
                 let item = AVPlayerItem(asset: asset)
                 self.player = AVPlayer(playerItem: item)
