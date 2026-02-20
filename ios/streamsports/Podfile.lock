@@ -1,16 +1,22 @@
 PODS:
+  - GCDWebServer (3.5.4):
+    - GCDWebServer/Core (= 3.5.4)
+  - GCDWebServer/Core (3.5.4)
   - google-cast-sdk (4.8.4)
 
 DEPENDENCIES:
+  - GCDWebServer (~> 3.5)
   - google-cast-sdk
 
 SPEC REPOS:
   trunk:
+    - GCDWebServer
     - google-cast-sdk
 
 SPEC CHECKSUMS:
+  GCDWebServer: 2c156a56c8226e2d5c0c3f208a3621ccffbe3ce4
   google-cast-sdk: 32f65af50d164e3c475e79ad123db3cc26fbcd37
 
-PODFILE CHECKSUM: cccb4e573d7aa694dc6320ed8351c7cd7cd3ed05
+PODFILE CHECKSUM: 01d20222a5ac3ab969cfe8b39bc5a15e6f808e36
 
 COCOAPODS: 1.16.2
