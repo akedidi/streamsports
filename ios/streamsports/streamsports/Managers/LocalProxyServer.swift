@@ -7,6 +7,14 @@ class LocalProxyServer {
     private var webServer: GCDWebServer?
     private var port: UInt = 8080
     
+    // Shared session for all proxy requests to prevent socket exhaustion and caching
+    private lazy var proxySession: URLSession = {
+        let config = URLSessionConfiguration.ephemeral
+        config.urlCache = nil // Absolutely disable all in-memory URLCaching
+        config.requestCachePolicy = .reloadIgnoringLocalCacheData
+        return URLSession(configuration: config)
+    }()
+    
     private init() {}
     
     func start() {
@@ -98,10 +106,7 @@ class LocalProxyServer {
             print("➡️ [LocalProxyServer] Fetching Playlist: \(url)")
             print("   Headers: \(req.allHTTPHeaderFields ?? [:])")
             
-            let config = URLSessionConfiguration.ephemeral
-            let session = URLSession(configuration: config)
-            
-            session.dataTask(with: req) { data, response, error in
+            self.proxySession.dataTask(with: req) { data, response, error in
                 if let httpMsg = response as? HTTPURLResponse {
                     statusCode = httpMsg.statusCode
                     if statusCode != 200 {
@@ -185,7 +190,7 @@ class LocalProxyServer {
             // Debug Headers (Optional, maybe too spammy for segments? Keep it for now)
             // print("➡️ [LocalProxyServer] Fetching Segment: \(url)") 
             
-            URLSession.shared.dataTask(with: req) { data, response, error in
+            self.proxySession.dataTask(with: req) { data, response, error in
                 if let httpMsg = response as? HTTPURLResponse {
                     statusCode = httpMsg.statusCode
                     if let type = httpMsg.mimeType { contentType = type }
